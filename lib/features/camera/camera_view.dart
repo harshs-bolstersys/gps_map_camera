@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+
+import 'package:camera/camera.dart' as cam;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +38,9 @@ class CameraView extends ConsumerWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _CameraPreviewBg(),
+                    Positioned.fill(
+                      child: _CameraPreviewBg(frontCamera: state.frontCamera, mirrorEnabled: state.mirrorEnabled),
+                    ),
                     if (state.gridEnabled) const _GridOverlay(),
                     Positioned(bottom: 12, left: 10, right: 10, child: _GpsStampPreview(state: state)),
                     if (state.isCapturing) Container(color: Colors.white.withOpacity(0.35)),
@@ -54,32 +60,95 @@ class CameraView extends ConsumerWidget {
 
 // ─── Camera Preview Background ───────────────────────────────────────────────
 
-class _CameraPreviewBg extends StatelessWidget {
+class _CameraPreviewBg extends StatefulWidget {
+  final bool frontCamera;
+  final bool mirrorEnabled;
+
+  const _CameraPreviewBg({required this.frontCamera, required this.mirrorEnabled});
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(center: Alignment.center, radius: 1.2, colors: [Color(0xFF1C2E3D), Color(0xFF050A0E)]),
-      ),
-      child: Stack(
-        children: [
-          // Subtle scene lines to hint at environment
-          Positioned.fill(child: CustomPaint(painter: _ScenePainter())),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.camera_alt_outlined, size: 64, color: Colors.white.withOpacity(0.05)),
-                const SizedBox(height: 8),
-                Text('Camera Preview', style: TextStyle(color: Colors.white.withOpacity(0.07), fontSize: 12, letterSpacing: 2)),
-              ],
-            ),
-          ),
-          // Corner brackets — classic camera UI
-          ..._cornerBrackets(),
-        ],
-      ),
-    );
+  State<_CameraPreviewBg> createState() => _CameraPreviewBgState();
+}
+
+class _CameraPreviewBgState extends State<_CameraPreviewBg> {
+  cam.CameraController? _controller;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initCamera();
+    });
+  }
+
+  @override
+  void didUpdateWidget(_CameraPreviewBg oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!kIsWeb && oldWidget.frontCamera != widget.frontCamera) {
+      _initCamera();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  cam.CameraDescription _pickLens(List<cam.CameraDescription> cameras, bool front) {
+    final want = front ? cam.CameraLensDirection.front : cam.CameraLensDirection.back;
+    for (final c in cameras) {
+      if (c.lensDirection == want) return c;
+    }
+    return cameras.first;
+  }
+
+  Future<void> _initCamera() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final old = _controller;
+    _controller = null;
+    await old?.dispose();
+    if (!mounted) return;
+
+    try {
+      final cameras = await cam.availableCameras();
+      if (!mounted) return;
+      if (cameras.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = 'No camera found';
+        });
+        return;
+      }
+
+      final next = cam.CameraController(_pickLens(cameras, widget.frontCamera), cam.ResolutionPreset.high, enableAudio: false);
+      await next.initialize();
+      if (!mounted) {
+        await next.dispose();
+        return;
+      }
+      setState(() {
+        _controller = next;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e, st) {
+      debugPrint('Camera init failed: $e\n$st');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Camera unavailable';
+        });
+      }
+    }
   }
 
   List<Widget> _cornerBrackets() {
@@ -89,6 +158,99 @@ class _CameraPreviewBg extends StatelessWidget {
       _Bracket(bottom: 20, left: 20, rotate: 270),
       _Bracket(bottom: 20, right: 20, rotate: 180),
     ];
+  }
+
+  /// [CameraPreview] embeds [AspectRatio]; it must not receive unbounded width *and* height (e.g. from [FittedBox]).
+  Widget _coverPreview(cam.CameraController controller) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxW = constraints.maxWidth;
+        final maxH = constraints.maxHeight;
+        if (maxW <= 0 || maxH <= 0 || !maxW.isFinite || !maxH.isFinite) {
+          return const SizedBox.shrink();
+        }
+        final ar = controller.value.aspectRatio;
+        final innerW = maxW;
+        final innerH = maxW * ar;
+        final scale = math.max(maxW / innerW, maxH / innerH);
+
+        Widget preview = ClipRect(
+          child: Center(
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.center,
+              child: SizedBox(width: innerW, height: innerH, child: cam.CameraPreview(controller)),
+            ),
+          ),
+        );
+        if (widget.frontCamera && widget.mirrorEnabled) {
+          preview = Transform.scale(scaleX: -1, alignment: Alignment.center, child: preview);
+        }
+        return preview;
+      },
+    );
+  }
+
+  Widget _staticFallback({bool showLoading = false, String? message}) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(center: Alignment.center, radius: 1.2, colors: [Color(0xFF1C2E3D), Color(0xFF050A0E)]),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _ScenePainter())),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+                    ),
+                  )
+                else ...[
+                  Icon(Icons.camera_alt_outlined, size: 64, color: Colors.white.withOpacity(0.05)),
+                  const SizedBox(height: 8),
+                  Text(
+                    message ?? 'Camera Preview',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 12, letterSpacing: message != null ? 0 : 2),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          ..._cornerBrackets(),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return _staticFallback(message: 'Camera preview is not available on web');
+    }
+    if (_error != null) {
+      return _staticFallback(message: _error);
+    }
+    if (_loading || _controller == null || !_controller!.value.isInitialized) {
+      return _staticFallback(showLoading: true);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: ColoredBox(color: Colors.black, child: _coverPreview(_controller!)),
+        ),
+        ..._cornerBrackets(),
+      ],
+    );
   }
 }
 
