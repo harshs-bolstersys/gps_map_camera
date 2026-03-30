@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/features/camera/camera_view.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'package:gps_map_camera/core/utils/snackbar_helper.dart';
+import 'package:gps_map_camera/services/storage_services.dart';
 import 'package:gps_map_camera/widgets/custom_button.dart';
 import 'package:gps_map_camera/widgets/toggle_permission_tile.dart';
 import 'permission_controller.dart';
@@ -69,7 +70,7 @@ class PermissionView extends ConsumerWidget {
 
               // Location permission tile
               TogglePermissionTile(
-                icon: _PermissionIcon(emoji: '🖼️', color: const Color(0xFFE8F5E9)),
+                icon: _PermissionIcon(emoji: '📍', color: const Color(0xFFE8F5E9)), // 🌍
                 title: 'Location Access',
                 subtitle: 'Used to add GPS location details and map stamps to captured photos and videos.',
                 value: state.locationEnabled,
@@ -87,7 +88,7 @@ class PermissionView extends ConsumerWidget {
 
               // Gallery permission tile
               TogglePermissionTile(
-                icon: _PermissionIcon(emoji: '📍', color: const Color(0xFFFCE4EC)),
+                icon: _PermissionIcon(emoji: '🖼️', color: const Color(0xFFFCE4EC)),
                 title: 'Photo Library Access',
                 subtitle: 'Allows saving captured photos and videos to your device gallery.',
                 value: state.galleryEnabled,
@@ -110,11 +111,14 @@ class PermissionView extends ConsumerWidget {
                 label: 'Continue',
                 isEnabled: state.allPermissionsEnabled,
                 onPressed: state.allPermissionsEnabled
-                    ? () => Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CameraView()),
-                        (route) => false,
-                      )
+                    ? () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const CameraView()),
+                          (route) => false,
+                        );
+                        SharedPrefHelper.setBool('has_seen_permissions', true);
+                      }
                     : () {
                         SnackbarHelper.showInfo(context, 'Please enable all permissions to continue');
                       },

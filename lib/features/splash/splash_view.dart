@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gps_map_camera/features/camera/camera_view.dart';
 import 'package:gps_map_camera/features/onboarding/onboarding_view.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:gps_map_camera/services/storage_services.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'splash_controller.dart';
 
 class SplashView extends ConsumerStatefulWidget {
@@ -36,9 +38,19 @@ class _SplashViewState extends ConsumerState<SplashView> with SingleTickerProvid
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(splashControllerProvider.notifier).initialize(() {
-        if (mounted) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const OnboardingView()));
-        }
+        if (!mounted) return;
+        SharedPrefHelper.getBool('has_seen_permissions').then((hasSeenPermissions) {
+          if (!mounted) return;
+          if (hasSeenPermissions == true) {
+            Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const CameraView()), (route) => false);
+          } else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const OnboardingView()),
+              (route) => false,
+            );
+          }
+        });
       });
     });
   }

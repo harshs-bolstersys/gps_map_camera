@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-
-import '../models/app_models.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 import 'storage_services.dart';
 
 /// Persists gallery metadata via [SharedPrefHelper] and image files on disk.

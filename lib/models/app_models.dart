@@ -311,50 +311,34 @@ class AppSettings {
   final bool saveOriginalPhoto;
   final bool autoSaveToGallery;
   final String defaultFolderName;
-  final bool soundEnabled;
-  final bool timerEnabled;
-  final int timerSeconds;
   final bool gridEnabled;
   final bool frontCamera;
   final bool flashEnabled;
-  final bool mirrorEnabled;
 
   const AppSettings({
     this.saveOriginalPhoto = false,
     this.autoSaveToGallery = true,
     this.defaultFolderName = 'GPS Map Camera',
-    this.soundEnabled = true,
-    this.timerEnabled = false,
-    this.timerSeconds = 3,
     this.gridEnabled = false,
     this.frontCamera = false,
     this.flashEnabled = false,
-    this.mirrorEnabled = false,
   });
 
   AppSettings copyWith({
     bool? saveOriginalPhoto,
     bool? autoSaveToGallery,
     String? defaultFolderName,
-    bool? soundEnabled,
-    bool? timerEnabled,
-    int? timerSeconds,
     bool? gridEnabled,
     bool? frontCamera,
     bool? flashEnabled,
-    bool? mirrorEnabled,
   }) {
     return AppSettings(
       saveOriginalPhoto: saveOriginalPhoto ?? this.saveOriginalPhoto,
       autoSaveToGallery: autoSaveToGallery ?? this.autoSaveToGallery,
       defaultFolderName: defaultFolderName ?? this.defaultFolderName,
-      soundEnabled: soundEnabled ?? this.soundEnabled,
-      timerEnabled: timerEnabled ?? this.timerEnabled,
-      timerSeconds: timerSeconds ?? this.timerSeconds,
       gridEnabled: gridEnabled ?? this.gridEnabled,
       frontCamera: frontCamera ?? this.frontCamera,
       flashEnabled: flashEnabled ?? this.flashEnabled,
-      mirrorEnabled: mirrorEnabled ?? this.mirrorEnabled,
     );
   }
 }

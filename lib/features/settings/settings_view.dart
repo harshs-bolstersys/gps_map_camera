@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
-import 'settings_controller.dart';
+import 'package:gps_map_camera/features/camera/camera_controller.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsControllerProvider);
-    final ctrl = ref.read(settingsControllerProvider.notifier);
+    final cameraState = ref.watch(cameraControllerProvider);
+    final cameraCtrl = ref.read(cameraControllerProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -25,30 +25,29 @@ class SettingsView extends ConsumerWidget {
           _Section(
             title: 'Camera',
             children: [
-              _SettingsTile(icon: Icons.flash_on_rounded, title: 'Flash', value: state.flashEnabled, onChanged: ctrl.toggleFlash),
+              _SettingsTile(
+                icon: Icons.flash_on_rounded,
+                title: 'Flash',
+                value: cameraState.flashOn,
+                onChanged: (v) {
+                  if (v != cameraState.flashOn) cameraCtrl.toggleFlash();
+                },
+              ),
               _SettingsTile(
                 icon: Icons.flip_camera_android_rounded,
                 title: 'Front Camera',
-                value: state.frontCamera,
-                onChanged: ctrl.toggleFrontCamera,
-              ),
-              _SettingsTile(
-                icon: Icons.flip_rounded,
-                title: 'Mirror Mode',
-                value: state.mirrorEnabled,
-                onChanged: ctrl.toggleMirror,
+                value: cameraState.frontCamera,
+                onChanged: (v) {
+                  if (v != cameraState.frontCamera) cameraCtrl.toggleCamera();
+                },
               ),
               _SettingsTile(
                 icon: Icons.grid_on_rounded,
                 title: 'Grid Lines',
-                value: state.gridEnabled,
-                onChanged: ctrl.toggleGrid,
-              ),
-              _SettingsTile(
-                icon: Icons.volume_up_rounded,
-                title: 'Capture Sound',
-                value: state.soundEnabled,
-                onChanged: ctrl.toggleSound,
+                value: cameraState.gridEnabled,
+                onChanged: (v) {
+                  if (v != cameraState.gridEnabled) cameraCtrl.toggleGrid();
+                },
               ),
             ],
           ),

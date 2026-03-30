@@ -1,13 +1,11 @@
-import 'dart:math' as math;
-
 import 'package:camera/camera.dart' as cam;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/features/settings/settings_view.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'camera_controller.dart';
-import '../gallery/gallery_view.dart';
+import 'package:gps_map_camera/features/gallery/gallery_view.dart';
 
 class CameraView extends ConsumerWidget {
   const CameraView({super.key});
@@ -32,14 +30,13 @@ class CameraView extends ConsumerWidget {
               // ── VIEWFINDER ─────────────────────────────────────────
               Expanded(
                 child: Stack(
-                  fit: StackFit.expand,
+                  fit: StackFit.passthrough,
                   children: [
-                    Positioned.fill(
-                      child: _CameraPreviewBg(frontCamera: state.frontCamera, mirrorEnabled: state.mirrorEnabled),
-                    ),
+                    Positioned.fill(child: _CameraPreviewBg(frontCamera: state.frontCamera)),
                     if (state.gridEnabled) const _GridOverlay(),
                     Positioned(bottom: 12, left: 10, right: 10, child: _GpsStampPreview(state: state)),
-                    if (state.isCapturing) Container(color: Colors.white.withOpacity(0.35)),
+                    if (state.isCapturing && state.flashOn)
+                      Container(color: Colors.white.withOpacity(state.frontCamera ? 1 : 0.0)),
                   ],
                 ),
               ),
@@ -58,9 +55,8 @@ class CameraView extends ConsumerWidget {
 
 class _CameraPreviewBg extends ConsumerStatefulWidget {
   final bool frontCamera;
-  final bool mirrorEnabled;
 
-  const _CameraPreviewBg({required this.frontCamera, required this.mirrorEnabled});
+  const _CameraPreviewBg({required this.frontCamera});
 
   @override
   ConsumerState<_CameraPreviewBg> createState() => _CameraPreviewBgState();
@@ -70,27 +66,43 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
   cam.CameraController? _controller;
   bool _loading = true;
   String? _error;
+  bool _disposed = false;
+  Future<void> _camQueue = Future.value();
+
+  Future<void> _syncFlashMode() async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    final cameraState = ref.read(cameraControllerProvider);
+    final useTorch = cameraState.flashOn && !cameraState.frontCamera;
+    try {
+      await c.setFlashMode(useTorch ? cam.FlashMode.torch : cam.FlashMode.off);
+    } catch (e, st) {
+      debugPrint('setFlashMode failed: $e\n$st');
+      // Some devices/front camera combinations don't support torch.
+      try {
+        await c.setFlashMode(cam.FlashMode.off);
+      } catch (_) {}
+    }
+  }
+
+  void _scheduleOpen() {
+    _camQueue = _camQueue.then((_) => _openCamera());
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _initCamera();
+      if (mounted) _scheduleOpen();
     });
   }
 
   @override
-  void didUpdateWidget(_CameraPreviewBg oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.frontCamera != widget.frontCamera) {
-      _initCamera();
-    }
-  }
-
-  @override
   void dispose() {
+    _disposed = true;
     ref.read(nativeCameraControllerProvider.notifier).state = null;
     _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
@@ -102,45 +114,91 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
     return cameras.first;
   }
 
-  Future<void> _initCamera() async {
-    if (!mounted) return;
-    ref.read(nativeCameraControllerProvider.notifier).state = null;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    final old = _controller;
-    _controller = null;
-    await old?.dispose();
-    if (!mounted) return;
+  Future<void> _openCamera() async {
+    if (!mounted || _disposed) return;
+    final wantFront = ref.read(cameraControllerProvider).frontCamera;
 
     try {
       final cameras = await cam.availableCameras();
-      if (!mounted) return;
+      if (!mounted || _disposed) return;
       if (cameras.isEmpty) {
-        setState(() {
-          _loading = false;
-          _error = 'No camera found';
-        });
+        if (mounted && !_disposed) {
+          setState(() {
+            _loading = false;
+            _error = 'No camera found';
+          });
+        }
         return;
       }
 
-      final next = cam.CameraController(_pickLens(cameras, widget.frontCamera), cam.ResolutionPreset.high, enableAudio: false);
+      final target = _pickLens(cameras, wantFront);
+      final c = _controller;
+
+      if (c != null && c.value.isInitialized && c.description.name == target.name) {
+        await _syncFlashMode();
+        if (mounted && !_disposed) {
+          setState(() {
+            _loading = false;
+            _error = null;
+          });
+        }
+        ref.read(nativeCameraControllerProvider.notifier).state = c;
+        return;
+      }
+
+      ref.read(nativeCameraControllerProvider.notifier).state = null;
+      if (mounted && !_disposed) {
+        setState(() {
+          _loading = true;
+          _error = null;
+        });
+      }
+
+      if (c != null && c.value.isInitialized) {
+        try {
+          await c.setDescription(target);
+          if (!mounted || _disposed) return;
+          _controller = c;
+          await _syncFlashMode();
+          if (mounted && !_disposed) {
+            setState(() {
+              _loading = false;
+              _error = null;
+            });
+          }
+          ref.read(nativeCameraControllerProvider.notifier).state = c;
+          return;
+        } catch (e, st) {
+          debugPrint('setDescription failed, recreating: $e\n$st');
+          await c.dispose();
+          if (!mounted || _disposed) return;
+          _controller = null;
+        }
+      }
+
+      final old = _controller;
+      _controller = null;
+      await old?.dispose();
+      if (!mounted || _disposed) return;
+
+      final next = cam.CameraController(target, cam.ResolutionPreset.high, enableAudio: false);
       await next.initialize();
-      if (!mounted) {
+      if (!mounted || _disposed) {
         await next.dispose();
         return;
       }
-      setState(() {
-        _controller = next;
-        _loading = false;
-        _error = null;
-      });
+      _controller = next;
+      await _syncFlashMode();
+      if (mounted && !_disposed) {
+        setState(() {
+          _loading = false;
+          _error = null;
+        });
+      }
       ref.read(nativeCameraControllerProvider.notifier).state = next;
     } catch (e, st) {
-      debugPrint('Camera init failed: $e\n$st');
-      if (mounted) {
+      debugPrint('Camera open failed: $e\n$st');
+      if (mounted && !_disposed) {
         setState(() {
           _loading = false;
           _error = 'Camera unavailable';
@@ -149,54 +207,16 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
     }
   }
 
-  List<Widget> _cornerBrackets() {
-    return [
-      _Bracket(top: 20, left: 20, rotate: 0),
-      _Bracket(top: 20, right: 20, rotate: 90),
-      _Bracket(bottom: 20, left: 20, rotate: 270),
-      _Bracket(bottom: 20, right: 20, rotate: 180),
-    ];
-  }
-
-  /// [CameraPreview] embeds [AspectRatio]; it must not receive unbounded width *and* height (e.g. from [FittedBox]).
+  // ─── Cover Preview ─────────────────────────────────────────────────────────────
   Widget _coverPreview(cam.CameraController controller) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxW = constraints.maxWidth;
-        final maxH = constraints.maxHeight;
-        if (maxW <= 0 || maxH <= 0 || !maxW.isFinite || !maxH.isFinite) {
-          return const SizedBox.shrink();
-        }
-        final ar = controller.value.aspectRatio;
-        final innerW = maxW;
-        final innerH = maxW * ar;
-        final scale = math.max(maxW / innerW, maxH / innerH);
-
-        Widget preview = ClipRect(
-          child: Center(
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.center,
-              child: SizedBox(width: innerW, height: innerH, child: cam.CameraPreview(controller)),
-            ),
-          ),
-        );
-        if (widget.frontCamera && widget.mirrorEnabled) {
-          preview = Transform.scale(scaleX: -1, alignment: Alignment.center, child: preview);
-        }
-        return preview;
-      },
-    );
+    return cam.CameraPreview(controller);
   }
 
   Widget _staticFallback({bool showLoading = false, String? message}) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(center: Alignment.center, radius: 1.2, colors: [Color(0xFF1C2E3D), Color(0xFF050A0E)]),
-      ),
+      color: Colors.black,
       child: Stack(
         children: [
-          Positioned.fill(child: CustomPaint(painter: _ScenePainter())),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -207,7 +227,7 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
                     child: SizedBox(
                       width: 28,
                       height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white30),
                     ),
                   )
                 else ...[
@@ -222,7 +242,6 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
               ],
             ),
           ),
-          ..._cornerBrackets(),
         ],
       ),
     );
@@ -230,6 +249,15 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(cameraControllerProvider.select((s) => s.frontCamera), (previous, next) {
+      if (previous != null && previous != next) _scheduleOpen();
+    });
+    ref.listen<bool>(cameraControllerProvider.select((s) => s.flashOn), (previous, next) {
+      if (previous != next) {
+        _camQueue = _camQueue.then((_) => _syncFlashMode());
+      }
+    });
+
     if (_error != null) {
       return _staticFallback(message: _error);
     }
@@ -237,67 +265,8 @@ class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
       return _staticFallback(showLoading: true);
     }
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Positioned.fill(
-          child: ColoredBox(color: Colors.black, child: _coverPreview(_controller!)),
-        ),
-        ..._cornerBrackets(),
-      ],
-    );
+    return _coverPreview(_controller!);
   }
-}
-
-class _Bracket extends StatelessWidget {
-  final double? top, left, right, bottom;
-  final double rotate;
-  const _Bracket({this.top, this.left, this.right, this.bottom, required this.rotate});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      bottom: bottom,
-      child: Transform.rotate(
-        angle: rotate * 3.14159 / 180,
-        child: SizedBox(width: 22, height: 22, child: CustomPaint(painter: _BracketPainter())),
-      ),
-    );
-  }
-}
-
-class _BracketPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = Colors.white.withOpacity(0.25)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(0, size.height), const Offset(0, 0), p);
-    canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), p);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-class _ScenePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = Colors.white.withOpacity(0.015)
-      ..strokeWidth = 1;
-    // Horizon line
-    canvas.drawLine(Offset(0, size.height * 0.55), Offset(size.width, size.height * 0.55), p);
-    // Vertical centre
-    canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), p);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 // ─── Top Toolbar ─────────────────────────────────────────────────────────────
@@ -320,13 +289,6 @@ class _TopToolbar extends StatelessWidget {
             label: state.flashOn ? 'On' : 'Off',
             active: state.flashOn,
             onTap: ctrl.toggleFlash,
-          ),
-          _TopBtn(icon: Icons.flip_camera_android_rounded, label: 'Flip', active: state.frontCamera, onTap: ctrl.toggleCamera),
-          _TopBtn(
-            icon: Icons.timer_rounded,
-            label: state.timerEnabled ? '${state.timerSeconds}s' : 'Timer',
-            active: state.timerEnabled,
-            onTap: ctrl.toggleTimer,
           ),
           _TopBtn(
             icon: state.gridEnabled ? Icons.grid_on_rounded : Icons.grid_off_rounded,
@@ -396,12 +358,26 @@ class _GpsStampPreview extends StatelessWidget {
     final loc = state.currentLocation;
     if (loc == null) return const SizedBox.shrink();
 
-    final now = DateTime.now();
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final dateStr = '${now.day.toString().padLeft(2, '0')}/${months[now.month - 1]}/${now.year}';
-    final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
-        'GMT${now.timeZoneOffset.isNegative ? '-' : '+'}${now.timeZoneOffset.inHours.abs().toString().padLeft(2, '0')}:00';
+    final now = DateTime.now(); // Local time
+    final months = [
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+    ];
+    final dateStr = '${now.day.toString().padLeft(2, '0')} ${months[now.month - 1]}, ${now.year}';
+
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    final hour12 = (now.hour % 12 == 0) ? 12 : now.hour % 12;
+    final timeStr = '$hour12:${now.minute.toString().padLeft(2, '0')} $amPm';
 
     return Container(
       decoration: BoxDecoration(
@@ -419,27 +395,7 @@ class _GpsStampPreview extends StatelessWidget {
               child: Container(
                 width: 62,
                 color: const Color(0xFF2D4A3E),
-                child: Stack(
-                  children: [
-                    // Map grid lines
-                    Positioned.fill(child: CustomPaint(painter: _MapTilePainter())),
-                    // Pin
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                            child: const Icon(Icons.location_on, color: Colors.white, size: 12),
-                          ),
-                          Container(width: 2, height: 6, color: Colors.red),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                child: Icon(Icons.location_on, color: Colors.red, size: 22),
               ),
             ),
 
@@ -489,7 +445,7 @@ class _GpsStampPreview extends StatelessWidget {
                     const SizedBox(height: 2),
 
                     // Date & time
-                    Text('$dateStr  $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
+                    Text('$dateStr - $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
 
                     // Optional extras
                     if (state.stampConfig.showAltitude && state.altitude != null) ...[
@@ -534,30 +490,7 @@ class _GpsStampPreview extends StatelessWidget {
   }
 }
 
-class _MapTilePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = Colors.white.withOpacity(0.12)
-      ..strokeWidth = 1;
-    for (double y = 0; y < size.height; y += 10) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), roadPaint);
-    }
-    for (double x = 0; x < size.width; x += 10) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), roadPaint);
-    }
-    // Road
-    final road = Paint()..color = Colors.white.withOpacity(0.18);
-    canvas.drawRect(Rect.fromLTWH(size.width * 0.35, 0, size.width * 0.12, size.height), road);
-    canvas.drawRect(Rect.fromLTWH(0, size.height * 0.4, size.width, size.height * 0.1), road);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
 // ─── Bottom Controls ─────────────────────────────────────────────────────────
-
 class _BottomControls extends StatelessWidget {
   final CameraState state;
   final CameraController ctrl;
@@ -571,14 +504,10 @@ class _BottomControls extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Photo / Video tabs
+          // Photo tab
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _ModeTab(label: 'PHOTO', selected: state.mode == CameraMode.photo, onTap: () => ctrl.setMode(CameraMode.photo)),
-              // const SizedBox(width: 6),
-              // _ModeTab(label: 'VIDEO', selected: state.mode == CameraMode.video, onTap: () => ctrl.setMode(CameraMode.video)),
-            ],
+            children: [_ModeTab(label: 'PHOTO', selected: true, onTap: () {})],
           ),
           const SizedBox(height: 16),
 
@@ -637,23 +566,20 @@ class _BottomControls extends StatelessWidget {
                     width: state.isCapturing ? 66 : 72,
                     height: state.isCapturing ? 66 : 72,
                     decoration: BoxDecoration(
-                      color: state.mode == CameraMode.photo ? AppColors.primary : Colors.red.shade600,
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (state.mode == CameraMode.photo ? AppColors.primary : Colors.red).withOpacity(0.55),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.55), blurRadius: 20, spreadRadius: 2)],
                     ),
-                    child: state.mode == CameraMode.video
-                        ? const Icon(Icons.fiber_manual_record, color: Colors.white, size: 30)
-                        : null,
+                    child: null,
                   ),
                 ),
-
+                _TopBtn(
+                  icon: Icons.flip_camera_android_rounded,
+                  label: 'Flip',
+                  active: state.frontCamera,
+                  onTap: ctrl.toggleCamera,
+                ),
                 // File Name
                 // _BottomNavBtn(
                 //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FileNameView())),
@@ -689,7 +615,7 @@ class _BottomControls extends StatelessWidget {
                 //     ],
                 //   ),
                 // ),
-                SizedBox(width: 44, height: 44),
+                // SizedBox(width: 44, height: 44),
               ],
             ),
           ),
@@ -753,7 +679,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+      ..color = Colors.white.withOpacity(0.8)
       ..strokeWidth = 0.6;
     canvas.drawLine(Offset(size.width / 3, 0), Offset(size.width / 3, size.height), p);
     canvas.drawLine(Offset(size.width * 2 / 3, 0), Offset(size.width * 2 / 3, size.height), p);

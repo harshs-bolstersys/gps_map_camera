@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 
 class TogglePermissionTile extends StatelessWidget {
   final Widget icon;

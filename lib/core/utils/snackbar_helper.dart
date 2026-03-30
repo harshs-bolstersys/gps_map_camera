@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 
 class SnackbarHelper {
   SnackbarHelper._();
@@ -13,10 +13,7 @@ class SnackbarHelper {
             const Icon(Icons.error_outline, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14)),
             ),
           ],
         ),
@@ -38,10 +35,7 @@ class SnackbarHelper {
             const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14)),
             ),
           ],
         ),
@@ -63,10 +57,7 @@ class SnackbarHelper {
             const Icon(Icons.info_outline, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14)),
             ),
           ],
         ),

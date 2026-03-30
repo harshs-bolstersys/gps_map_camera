@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/image_constant.dart';
 import 'package:gps_map_camera/features/permissions/permission_view.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'onboarding_controller.dart';
 
 class OnboardingView extends ConsumerStatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/app_colors.dart';
-import '../../models/app_models.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 import 'locations_controller.dart';
 
 class LocationsView extends ConsumerWidget {
@@ -42,15 +42,8 @@ class LocationsView extends ConsumerWidget {
                 children: [
                   // Simulated map
                   Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFE8E0D0), Color(0xFFD4C9B0)],
-                      ),
-                    ),
-                    child: CustomPaint(
-                      painter: _MapGridPainter(),
-                      size: Size.infinite,
-                    ),
+                    decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFE8E0D0), Color(0xFFD4C9B0)])),
+                    child: CustomPaint(painter: _MapGridPainter(), size: Size.infinite),
                   ),
                   // Pins for saved locations
                   ...state.locations.asMap().entries.map((entry) {
@@ -66,10 +59,7 @@ class LocationsView extends ConsumerWidget {
                     left: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.85), borderRadius: BorderRadius.circular(6)),
                       child: const Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                   ),
@@ -89,9 +79,7 @@ class LocationsView extends ConsumerWidget {
                       final loc = state.locations[index];
                       return _LocationTile(
                         location: loc,
-                        onDelete: () => ref
-                            .read(locationsControllerProvider.notifier)
-                            .deleteLocation(loc.id),
+                        onDelete: () => ref.read(locationsControllerProvider.notifier).deleteLocation(loc.id),
                       );
                     },
                   ),
@@ -120,16 +108,12 @@ class LocationsView extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Add Manual Location',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text('Add Manual Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
               // Simulated mini-map
               Container(
                 height: 140,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8E0D0),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: const Color(0xFFE8E0D0), borderRadius: BorderRadius.circular(12)),
                 child: Stack(
                   children: [
                     CustomPaint(painter: _MapGridPainter(), size: Size.infinite),
@@ -144,7 +128,8 @@ class LocationsView extends ConsumerWidget {
                             child: const Icon(Icons.info, color: Colors.white, size: 18),
                           ),
                           Container(
-                            width: 12, height: 12,
+                            width: 12,
+                            height: 12,
                             decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
                           ),
                         ],
@@ -183,7 +168,9 @@ class LocationsView extends ConsumerWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     if (titleCtrl.text.isNotEmpty) {
-                      ref.read(locationsControllerProvider.notifier).addLocation(
+                      ref
+                          .read(locationsControllerProvider.notifier)
+                          .addLocation(
                             SavedLocation(
                               id: 'loc_${DateTime.now().millisecondsSinceEpoch}',
                               title: titleCtrl.text,
@@ -226,18 +213,14 @@ class _LocationTile extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 22),
           ),
           const SizedBox(width: 12),
@@ -292,7 +275,9 @@ class _MapPin extends StatelessWidget {
 class _MapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFFD4C9B0)..strokeWidth = 0.8;
+    final paint = Paint()
+      ..color = const Color(0xFFD4C9B0)
+      ..strokeWidth = 0.8;
     for (double y = 0; y < size.height; y += 25) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
@@ -319,7 +304,10 @@ class _EmptyLocations extends StatelessWidget {
         children: [
           Icon(Icons.location_off_rounded, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          const Text('No Saved Locations', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          const Text(
+            'No Saved Locations',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: onAdd,

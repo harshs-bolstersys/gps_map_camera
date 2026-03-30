@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
-
-import '../core/constants/app_colors.dart';
-import '../models/app_models.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 
 /// Draws the same GPS stamp as the camera preview onto a JPEG after capture.
 class PhotoGpsStampCompositor {
@@ -21,6 +19,7 @@ class PhotoGpsStampCompositor {
     double? altitude,
     double? accuracy,
     double? compassBearing,
+    bool flipHorizontally = false,
   }) async {
     ui.Image? decoded;
     ui.Image? stamp;
@@ -47,7 +46,7 @@ class PhotoGpsStampCompositor {
       );
       if (stamp == null) return;
 
-      composed = await _compositeUnder(decoded, stamp, marginH, marginB);
+      composed = await _compositeUnder(decoded, stamp, marginH, marginB, flipHorizontally: flipHorizontally);
       decoded.dispose();
       decoded = null;
       stamp.dispose();
@@ -77,12 +76,25 @@ class PhotoGpsStampCompositor {
     }
   }
 
-  static Future<ui.Image> _compositeUnder(ui.Image photo, ui.Image stamp, double marginH, double marginB) async {
+  static Future<ui.Image> _compositeUnder(
+    ui.Image photo,
+    ui.Image stamp,
+    double marginH,
+    double marginB, {
+    required bool flipHorizontally,
+  }) async {
     final ox = marginH;
     final oy = photo.height - marginB - stamp.height;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    // Flip only the photo pixels (not the stamp). This keeps the text orientation correct.
+    canvas.save();
+    if (flipHorizontally) {
+      canvas.translate(photo.width.toDouble(), 0);
+      canvas.scale(-1.0, 1.0);
+    }
     canvas.drawImage(photo, Offset.zero, Paint());
+    canvas.restore();
     canvas.drawImage(stamp, Offset(ox, oy), Paint());
     final picture = recorder.endRecording();
     final out = await picture.toImage(photo.width, photo.height);
@@ -122,12 +134,25 @@ class PhotoGpsStampCompositor {
     final textMaxW = width - mapW - 2 * padSide;
     if (textMaxW < 48) return null;
 
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final dateStr = '${capturedAt.day.toString().padLeft(2, '0')}/${months[capturedAt.month - 1]}/${capturedAt.year}';
-    final tz = capturedAt.timeZoneOffset;
-    final timeStr =
-        '${capturedAt.hour.toString().padLeft(2, '0')}:${capturedAt.minute.toString().padLeft(2, '0')} '
-        'GMT${tz.isNegative ? '-' : '+'}${tz.inHours.abs().toString().padLeft(2, '0')}:00';
+    final months = [
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+    ];
+    final dateStr = '${capturedAt.day.toString().padLeft(2, '0')} ${months[capturedAt.month - 1]}, ${capturedAt.year}';
+
+    final amPm = capturedAt.hour >= 12 ? 'PM' : 'AM';
+    final hour12 = (capturedAt.hour % 12 == 0) ? 12 : capturedAt.hour % 12;
+    final timeStr = '$hour12:${capturedAt.minute.toString().padLeft(2, '0')} $amPm';
 
     final coordLine = 'Lat ${location.latitude.toStringAsFixed(6)}°  Long ${location.longitude.toStringAsFixed(6)}°';
 
@@ -167,7 +192,7 @@ class PhotoGpsStampCompositor {
 
     final datePainter = TextPainter(
       text: TextSpan(
-        text: '$dateStr  $timeStr',
+        text: '$dateStr - $timeStr',
         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 9 * ls),
       ),
       textDirection: TextDirection.ltr,
@@ -227,10 +252,16 @@ class PhotoGpsStampCompositor {
     canvas.save();
     canvas.clipRRect(mapClip);
     canvas.drawRect(Rect.fromLTWH(0, 0, mapW, stampH.toDouble()), Paint()..color = const Color(0xFF2D4A3E));
-    _paintMapGrid(canvas, Size(mapW, stampH.toDouble()));
     canvas.restore();
 
-    _paintMapPin(canvas, Offset(mapW / 2, stampH / 2), ls);
+    final centerIconSize = 20 * ls;
+    _paintMaterialIcon(
+      canvas,
+      Icons.location_on,
+      Colors.red,
+      centerIconSize,
+      Offset((mapW - centerIconSize) / 2, (stampH - centerIconSize) / 2),
+    );
 
     var ty = padV;
     final brandPrimary = RRect.fromRectAndRadius(
@@ -276,31 +307,6 @@ class PhotoGpsStampCompositor {
     final image = await picture.toImage(width, stampH);
     picture.dispose();
     return image;
-  }
-
-  static void _paintMapGrid(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 1;
-    for (double y = 0; y < size.height; y += 10) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), roadPaint);
-    }
-    for (double x = 0; x < size.width; x += 10) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), roadPaint);
-    }
-    final road = Paint()..color = Colors.white.withValues(alpha: 0.18);
-    canvas.drawRect(Rect.fromLTWH(size.width * 0.35, 0, size.width * 0.12, size.height), road);
-    canvas.drawRect(Rect.fromLTWH(0, size.height * 0.4, size.width, size.height * 0.1), road);
-  }
-
-  static void _paintMapPin(Canvas canvas, Offset center, double ls) {
-    final pinR = 9 * ls;
-    canvas.drawCircle(center.translate(0, -3 * ls), pinR, Paint()..color = Colors.red);
-    _paintMaterialIcon(canvas, Icons.location_on, Colors.white, 12 * ls, center.translate(-6 * ls, -3 * ls - 6 * ls));
-    canvas.drawRect(
-      Rect.fromCenter(center: center.translate(0, 6 * ls), width: 2 * ls, height: 6 * ls),
-      Paint()..color = Colors.red,
-    );
   }
 
   static void _paintMaterialIcon(Canvas canvas, IconData icon, Color color, double size, Offset topLeft) {

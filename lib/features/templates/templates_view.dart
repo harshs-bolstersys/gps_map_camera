@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/app_colors.dart';
-import '../../models/app_models.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 import 'templates_controller.dart';
 
 class TemplatesView extends ConsumerWidget {
@@ -32,10 +32,7 @@ class TemplatesView extends ConsumerWidget {
             final isSelected = template.id == state.selectedTemplateId;
             return GestureDetector(
               onTap: () => ctrl.selectTemplate(template.id),
-              child: _TemplateTile(
-                template: template,
-                isSelected: isSelected,
-              ),
+              child: _TemplateTile(template: template, isSelected: isSelected),
             );
           }),
           const SizedBox(height: 24),
@@ -69,10 +66,7 @@ class _TemplateTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primary.withOpacity(0.05) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? AppColors.primary : AppColors.cardBorder,
-          width: isSelected ? 2 : 1,
-        ),
+        border: Border.all(color: isSelected ? AppColors.primary : AppColors.cardBorder, width: isSelected ? 2 : 1),
         boxShadow: isSelected
             ? [BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 3))]
             : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
@@ -90,13 +84,23 @@ class _TemplateTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(template.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
+                      Text(
+                        template.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                      ),
                       if (template.isPremium) ...[
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)),
-                          child: const Text('PRO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.amber)),
+                          child: const Text(
+                            'PRO',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.amber),
+                          ),
                         ),
                       ],
                     ],
@@ -105,16 +109,11 @@ class _TemplateTile extends StatelessWidget {
                   Text(template.description, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4)),
                   const SizedBox(height: 8),
                   // Feature chips
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: _buildChips(template.config),
-                  ),
+                  Wrap(spacing: 4, runSpacing: 4, children: _buildChips(template.config)),
                 ],
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22),
+            if (isSelected) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22),
           ],
         ),
       ),
@@ -136,15 +135,20 @@ class _TemplateTile extends StatelessWidget {
 
     return items
         .take(4)
-        .map((label) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-            ))
+        .map(
+          (label) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            ),
+          ),
+        )
         .toList();
   }
 }
@@ -175,10 +179,7 @@ class _MiniPreview extends StatelessWidget {
             right: 5,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
-                borderRadius: BorderRadius.circular(4),
-              ),
+              decoration: BoxDecoration(color: Colors.black.withOpacity(0.75), borderRadius: BorderRadius.circular(4)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -186,8 +187,7 @@ class _MiniPreview extends StatelessWidget {
                     Container(height: 4, width: 40, color: Colors.white70, margin: const EdgeInsets.only(bottom: 2)),
                   if (config.showCoordinates)
                     Container(height: 3, width: 55, color: Colors.white38, margin: const EdgeInsets.only(bottom: 2)),
-                  if (config.showDate || config.showTime)
-                    Container(height: 3, width: 45, color: Colors.white38),
+                  if (config.showDate || config.showTime) Container(height: 3, width: 45, color: Colors.white38),
                 ],
               ),
             ),

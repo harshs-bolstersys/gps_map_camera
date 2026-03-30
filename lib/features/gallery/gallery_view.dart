@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../core/constants/app_colors.dart';
-import '../../models/app_models.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 import 'gallery_controller.dart';
 import 'gallery_local_image.dart';
 
@@ -290,8 +290,27 @@ class _PhotoDetailSheet extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}  '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    const months = [
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+    ];
+    final dateStr = '${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}, ${dt.year}';
+
+    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+    final hour12 = (dt.hour % 12 == 0) ? 12 : dt.hour % 12;
+    final timeStr = '$hour12:${dt.minute.toString().padLeft(2, '0')} $amPm';
+
+    return '$dateStr - $timeStr';
   }
 }
 

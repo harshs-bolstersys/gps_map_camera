@@ -1,11 +1,11 @@
 import 'package:camera/camera.dart' as cam;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/app_models.dart';
-import '../../services/gallery_local_storage.dart';
-import '../../services/photo_gps_stamp_compositor.dart';
-import '../../services/location_sevice.dart';
-import '../gallery/gallery_controller.dart';
+import 'package:gps_map_camera/models/app_models.dart';
+import 'package:gps_map_camera/services/gallery_local_storage.dart';
+import 'package:gps_map_camera/services/photo_gps_stamp_compositor.dart';
+import 'package:gps_map_camera/services/location_sevice.dart';
+import 'package:gps_map_camera/features/gallery/gallery_controller.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -14,13 +14,7 @@ class CameraState {
   final bool isCapturing;
   final bool flashOn;
   final bool frontCamera;
-  final bool mirrorEnabled;
   final bool gridEnabled;
-  final bool timerEnabled;
-  final int timerSeconds;
-  final int timerCountdown;
-  final bool isCounting;
-  final CameraMode mode;
   final GpsCoordinate? currentLocation;
   final String currentAddress;
   final double? compassBearing;
@@ -34,13 +28,7 @@ class CameraState {
     this.isCapturing = false,
     this.flashOn = false,
     this.frontCamera = false,
-    this.mirrorEnabled = false,
     this.gridEnabled = false,
-    this.timerEnabled = false,
-    this.timerSeconds = 3,
-    this.timerCountdown = 0,
-    this.isCounting = false,
-    this.mode = CameraMode.photo,
     this.currentLocation,
     this.currentAddress = 'Fetching location...',
     this.compassBearing,
@@ -55,13 +43,7 @@ class CameraState {
     bool? isCapturing,
     bool? flashOn,
     bool? frontCamera,
-    bool? mirrorEnabled,
     bool? gridEnabled,
-    bool? timerEnabled,
-    int? timerSeconds,
-    int? timerCountdown,
-    bool? isCounting,
-    CameraMode? mode,
     GpsCoordinate? currentLocation,
     String? currentAddress,
     double? compassBearing,
@@ -75,13 +57,7 @@ class CameraState {
       isCapturing: isCapturing ?? this.isCapturing,
       flashOn: flashOn ?? this.flashOn,
       frontCamera: frontCamera ?? this.frontCamera,
-      mirrorEnabled: mirrorEnabled ?? this.mirrorEnabled,
       gridEnabled: gridEnabled ?? this.gridEnabled,
-      timerEnabled: timerEnabled ?? this.timerEnabled,
-      timerSeconds: timerSeconds ?? this.timerSeconds,
-      timerCountdown: timerCountdown ?? this.timerCountdown,
-      isCounting: isCounting ?? this.isCounting,
-      mode: mode ?? this.mode,
       currentLocation: currentLocation ?? this.currentLocation,
       currentAddress: currentAddress ?? this.currentAddress,
       compassBearing: compassBearing ?? this.compassBearing,
@@ -92,8 +68,6 @@ class CameraState {
     );
   }
 }
-
-enum CameraMode { photo, video }
 
 // ─── Controller ───────────────────────────────────────────────────────────────
 
@@ -139,17 +113,20 @@ class CameraController extends StateNotifier<CameraState> {
     super.dispose();
   }
 
-  void toggleFlash() => state = state.copyWith(flashOn: !state.flashOn);
-  void toggleCamera() => state = state.copyWith(frontCamera: !state.frontCamera);
-  void toggleMirror() => state = state.copyWith(mirrorEnabled: !state.mirrorEnabled);
+  void toggleFlash() {
+    state = state.copyWith(flashOn: !state.flashOn);
+  }
+
+  void toggleCamera() {
+    final nextFront = !state.frontCamera;
+    state = state.copyWith(frontCamera: nextFront);
+  }
+
   void toggleGrid() => state = state.copyWith(gridEnabled: !state.gridEnabled);
-  void toggleTimer() => state = state.copyWith(timerEnabled: !state.timerEnabled);
-  void setMode(CameraMode mode) => state = state.copyWith(mode: mode);
-  void setTimerSeconds(int seconds) => state = state.copyWith(timerSeconds: seconds);
   void updateStampConfig(StampConfig config) => state = state.copyWith(stampConfig: config);
 
   Future<void> capturePhoto() async {
-    if (state.isCapturing || state.mode != CameraMode.photo) return;
+    if (state.isCapturing) return;
     final native = _ref.read(nativeCameraControllerProvider);
     if (native == null || !native.value.isInitialized) {
       debugPrint('capturePhoto: camera not ready');
@@ -171,6 +148,8 @@ class CameraController extends StateNotifier<CameraState> {
           altitude: state.altitude,
           accuracy: state.accuracy,
           compassBearing: state.compassBearing,
+          // Front camera outputs a mirrored JPEG in this pipeline; flip back so the saved selfie is not mirrored.
+          flipHorizontally: state.frontCamera,
         );
       }
       final id = 'photo_${DateTime.now().millisecondsSinceEpoch}';

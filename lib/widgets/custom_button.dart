@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
+import 'package:gps_map_camera/core/constants/app_colors.dart';
 
 class CustomButton extends StatelessWidget {
   final String label;
@@ -32,9 +32,7 @@ class CustomButton extends StatelessWidget {
           disabledBackgroundColor: AppColors.divider,
           disabledForegroundColor: AppColors.textSecondary,
           elevation: isEnabled ? 2 : 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
         ),
         child: Text(
           label,

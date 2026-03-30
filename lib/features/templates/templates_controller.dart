@@ -1,6 +1,6 @@
 // templates_controller.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/app_models.dart';
+import 'package:gps_map_camera/models/app_models.dart';
 
 class TemplatesState {
   final List<StampTemplate> templates;
