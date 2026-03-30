@@ -110,10 +110,9 @@ class _Section extends StatelessWidget {
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
-  const _SettingsTile({required this.icon, required this.title, this.subtitle, required this.value, required this.onChanged});
+  const _SettingsTile({required this.icon, required this.title, required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +127,6 @@ class _SettingsTile extends StatelessWidget {
         child: Icon(icon, size: 18, color: value ? AppColors.primary : AppColors.textSecondary),
       ),
       title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      subtitle: subtitle != null ? Text(subtitle!, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)) : null,
       trailing: Switch(
         value: value,
         onChanged: onChanged,
@@ -142,118 +140,6 @@ class _SettingsTile extends StatelessWidget {
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-    );
-  }
-}
-
-class _SliderTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final double value;
-  final double min;
-  final double max;
-  final String suffix;
-  final ValueChanged<double> onChanged;
-  const _SliderTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.suffix,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(9)),
-            child: Icon(icon, size: 18, color: AppColors.textSecondary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    Text(
-                      '${value.toInt()}$suffix',
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: value,
-                  min: min,
-                  max: max,
-                  activeColor: AppColors.primary,
-                  inactiveColor: AppColors.divider,
-                  onChanged: onChanged,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TextTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final ValueChanged<String> onChanged;
-  const _TextTile({required this.icon, required this.title, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(9)),
-        child: Icon(icon, size: 18, color: AppColors.textSecondary),
-      ),
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      subtitle: Text(value, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-      onTap: () => _showEditDialog(context),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-    );
-  }
-
-  void _showEditDialog(BuildContext context) {
-    final ctrl = TextEditingController(text: value);
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              onChanged(ctrl.text);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.black),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
     );
   }
 }
