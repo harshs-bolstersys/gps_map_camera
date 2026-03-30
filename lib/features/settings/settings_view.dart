@@ -53,67 +53,17 @@ class SettingsView extends ConsumerWidget {
             ],
           ),
 
-          // ── Timer ─────────────────────────────────────────────────────
-          _Section(
-            title: 'Timer',
-            children: [
-              _SettingsTile(
-                icon: Icons.timer_rounded,
-                title: 'Self Timer',
-                value: state.timerEnabled,
-                onChanged: ctrl.toggleTimer,
-              ),
-              if (state.timerEnabled)
-                _SliderTile(
-                  icon: Icons.hourglass_bottom_rounded,
-                  title: 'Timer Duration',
-                  value: state.timerSeconds.toDouble(),
-                  min: 3,
-                  max: 15,
-                  suffix: 's',
-                  onChanged: (v) => ctrl.setTimerSeconds(v.toInt()),
-                ),
-            ],
-          ),
-
-          // ── Storage ───────────────────────────────────────────────────
-          _Section(
-            title: 'Storage',
-            children: [
-              _SettingsTile(
-                icon: Icons.save_alt_rounded,
-                title: 'Auto Save to Gallery',
-                value: state.autoSaveToGallery,
-                onChanged: ctrl.toggleAutoSave,
-              ),
-              _SettingsTile(
-                icon: Icons.photo_library_rounded,
-                title: 'Save Original Photo',
-                subtitle: 'Keep both stamped and unstamped',
-                value: state.saveOriginalPhoto,
-                onChanged: ctrl.toggleSaveOriginal,
-              ),
-              _TextTile(
-                icon: Icons.folder_rounded,
-                title: 'Default Folder',
-                value: state.defaultFolderName,
-                onChanged: ctrl.setFolder,
-              ),
-            ],
-          ),
-
           // ── About ─────────────────────────────────────────────────────
           _Section(
             title: 'About',
             children: [
-              _InfoTile(icon: Icons.info_outline_rounded, title: 'Version', value: '2.4.1'),
+              _InfoTile(icon: Icons.info_outline_rounded, title: 'Version', value: '1.0.0'),
               _InfoTile(icon: Icons.star_rate_rounded, title: 'Rate Us', value: '⭐⭐⭐⭐⭐'),
               _InfoTile(icon: Icons.share_rounded, title: 'Share App', value: ''),
               _InfoTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy', value: ''),
               _InfoTile(icon: Icons.description_outlined, title: 'Terms of Service', value: ''),
             ],
           ),
-
           const SizedBox(height: 40),
         ],
       ),

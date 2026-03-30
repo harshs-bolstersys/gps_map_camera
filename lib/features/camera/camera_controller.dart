@@ -1,5 +1,11 @@
+import 'package:camera/camera.dart' as cam;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/app_models.dart';
+import '../../services/gallery_local_storage.dart';
+import '../../services/photo_gps_stamp_compositor.dart';
+import '../../services/location_sevice.dart';
+import '../gallery/gallery_controller.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -92,24 +98,45 @@ enum CameraMode { photo, video }
 // ─── Controller ───────────────────────────────────────────────────────────────
 
 class CameraController extends StateNotifier<CameraState> {
-  CameraController() : super(const CameraState()) {
-    _initMockLocation();
+  CameraController(this._ref, this._location) : super(const CameraState()) {
+    _bootstrapLocation();
   }
 
-  void _initMockLocation() {
-    // Simulated location — replace with geolocator in production
-    state = state.copyWith(
-      currentLocation: const GpsCoordinate(
-        latitude: 28.608537,
-        longitude: -80.603999,
-        altitude: 12.5,
-        accuracy: 4.2,
-      ),
-      currentAddress: 'West Hollywood, Florida, USA',
-      compassBearing: 245.0,
-      altitude: 12.5,
-      accuracy: 4.2,
+  final Ref _ref;
+  final LocationService _location;
+
+  Future<void> _bootstrapLocation() async {
+    final cached = await _location.loadCachedSnapshot();
+    if (cached != null) {
+      state = _applySnapshot(cached, state);
+    }
+
+    final result = await _location.fetchCurrentLocation();
+    if (result.snapshot != null) {
+      state = _applySnapshot(result.snapshot!, state);
+    } else if (cached == null) {
+      state = state.copyWith(currentAddress: result.errorMessage ?? 'Location unavailable', currentLocation: null);
+    } else if (result.errorMessage != null) {
+      state = state.copyWith(currentAddress: result.errorMessage!);
+    }
+
+    _location.startWatching((snap) => state = _applySnapshot(snap, state), onError: (_) {});
+  }
+
+  CameraState _applySnapshot(LocationSnapshot snap, CameraState base) {
+    return base.copyWith(
+      currentLocation: snap.coordinate,
+      currentAddress: snap.address,
+      compassBearing: snap.compassBearing,
+      altitude: snap.coordinate.altitude,
+      accuracy: snap.coordinate.accuracy,
     );
+  }
+
+  @override
+  void dispose() {
+    _location.stopWatching();
+    super.dispose();
   }
 
   void toggleFlash() => state = state.copyWith(flashOn: !state.flashOn);
@@ -122,19 +149,61 @@ class CameraController extends StateNotifier<CameraState> {
   void updateStampConfig(StampConfig config) => state = state.copyWith(stampConfig: config);
 
   Future<void> capturePhoto() async {
-    if (state.isCapturing) return;
+    if (state.isCapturing || state.mode != CameraMode.photo) return;
+    final native = _ref.read(nativeCameraControllerProvider);
+    if (native == null || !native.value.isInitialized) {
+      debugPrint('capturePhoto: camera not ready');
+      return;
+    }
     state = state.copyWith(isCapturing: true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    state = state.copyWith(
-      isCapturing: false,
-      lastCapturedPath: 'captured_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
+    try {
+      final xfile = await native.takePicture();
+      final savedPath = await GalleryLocalStorage.copyCaptureToAppDirectory(xfile.path);
+      final capturedAt = DateTime.now();
+      final loc = state.currentLocation;
+      if (loc != null) {
+        await PhotoGpsStampCompositor.compositeOntoFileIfPossible(
+          jpegPath: savedPath,
+          location: loc,
+          address: state.currentAddress,
+          capturedAt: capturedAt,
+          stampConfig: state.stampConfig,
+          altitude: state.altitude,
+          accuracy: state.accuracy,
+          compassBearing: state.compassBearing,
+        );
+      }
+      final id = 'photo_${DateTime.now().millisecondsSinceEpoch}';
+      final coord = loc ?? const GpsCoordinate(latitude: 0, longitude: 0);
+      final photo = GeoPhoto(
+        id: id,
+        filePath: savedPath,
+        coordinate: coord,
+        address: state.currentAddress,
+        capturedAt: capturedAt,
+        stampConfig: state.stampConfig,
+        compassBearing: state.compassBearing,
+      );
+      await _ref.read(galleryControllerProvider.notifier).addPhoto(photo);
+      state = state.copyWith(isCapturing: false, lastCapturedPath: savedPath);
+    } catch (e, st) {
+      debugPrint('capturePhoto failed: $e\n$st');
+      state = state.copyWith(isCapturing: false);
+    }
   }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-final cameraControllerProvider =
-    StateNotifierProvider<CameraController, CameraState>(
-  (ref) => CameraController(),
-);
+final locationServiceProvider = Provider<LocationService>((ref) {
+  final s = LocationService();
+  ref.onDispose(s.dispose);
+  return s;
+});
+
+final nativeCameraControllerProvider = StateProvider<cam.CameraController?>((ref) => null);
+
+final cameraControllerProvider = StateNotifierProvider<CameraController, CameraState>((ref) {
+  final loc = ref.watch(locationServiceProvider);
+  return CameraController(ref, loc);
+});

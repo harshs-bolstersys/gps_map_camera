@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:camera/camera.dart' as cam;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +8,6 @@ import 'package:gps_map_camera/features/settings/settings_view.dart';
 import '../../core/constants/app_colors.dart';
 import 'camera_controller.dart';
 import '../gallery/gallery_view.dart';
-import '../locations/locations_view.dart';
-import '../file_name/file_name_view.dart';
-import '../templates/templates_view.dart';
 
 class CameraView extends ConsumerWidget {
   const CameraView({super.key});
@@ -60,17 +56,17 @@ class CameraView extends ConsumerWidget {
 
 // ─── Camera Preview Background ───────────────────────────────────────────────
 
-class _CameraPreviewBg extends StatefulWidget {
+class _CameraPreviewBg extends ConsumerStatefulWidget {
   final bool frontCamera;
   final bool mirrorEnabled;
 
   const _CameraPreviewBg({required this.frontCamera, required this.mirrorEnabled});
 
   @override
-  State<_CameraPreviewBg> createState() => _CameraPreviewBgState();
+  ConsumerState<_CameraPreviewBg> createState() => _CameraPreviewBgState();
 }
 
-class _CameraPreviewBgState extends State<_CameraPreviewBg> {
+class _CameraPreviewBgState extends ConsumerState<_CameraPreviewBg> {
   cam.CameraController? _controller;
   bool _loading = true;
   String? _error;
@@ -78,7 +74,6 @@ class _CameraPreviewBgState extends State<_CameraPreviewBg> {
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _initCamera();
     });
@@ -87,13 +82,14 @@ class _CameraPreviewBgState extends State<_CameraPreviewBg> {
   @override
   void didUpdateWidget(_CameraPreviewBg oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!kIsWeb && oldWidget.frontCamera != widget.frontCamera) {
+    if (oldWidget.frontCamera != widget.frontCamera) {
       _initCamera();
     }
   }
 
   @override
   void dispose() {
+    ref.read(nativeCameraControllerProvider.notifier).state = null;
     _controller?.dispose();
     super.dispose();
   }
@@ -108,6 +104,7 @@ class _CameraPreviewBgState extends State<_CameraPreviewBg> {
 
   Future<void> _initCamera() async {
     if (!mounted) return;
+    ref.read(nativeCameraControllerProvider.notifier).state = null;
     setState(() {
       _loading = true;
       _error = null;
@@ -140,6 +137,7 @@ class _CameraPreviewBgState extends State<_CameraPreviewBg> {
         _loading = false;
         _error = null;
       });
+      ref.read(nativeCameraControllerProvider.notifier).state = next;
     } catch (e, st) {
       debugPrint('Camera init failed: $e\n$st');
       if (mounted) {
@@ -232,9 +230,6 @@ class _CameraPreviewBgState extends State<_CameraPreviewBg> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return _staticFallback(message: 'Camera preview is not available on web');
-    }
     if (_error != null) {
       return _staticFallback(message: _error);
     }
@@ -581,8 +576,8 @@ class _BottomControls extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _ModeTab(label: 'PHOTO', selected: state.mode == CameraMode.photo, onTap: () => ctrl.setMode(CameraMode.photo)),
-              const SizedBox(width: 6),
-              _ModeTab(label: 'VIDEO', selected: state.mode == CameraMode.video, onTap: () => ctrl.setMode(CameraMode.video)),
+              // const SizedBox(width: 6),
+              // _ModeTab(label: 'VIDEO', selected: state.mode == CameraMode.video, onTap: () => ctrl.setMode(CameraMode.video)),
             ],
           ),
           const SizedBox(height: 16),
@@ -617,22 +612,22 @@ class _BottomControls extends StatelessWidget {
                 ),
 
                 // Locations
-                _BottomNavBtn(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationsView())),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
-                        child: const Icon(Icons.location_on_rounded, color: Colors.white70, size: 22),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text('Locations', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                    ],
-                  ),
-                ),
+                // _BottomNavBtn(
+                //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationsView())),
+                //   child: Column(
+                //     mainAxisSize: MainAxisSize.min,
+                //     children: [
+                //       Container(
+                //         width: 44,
+                //         height: 44,
+                //         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
+                //         child: const Icon(Icons.location_on_rounded, color: Colors.white70, size: 22),
+                //       ),
+                //       const SizedBox(height: 5),
+                //       const Text('Locations', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                //     ],
+                //   ),
+                // ),
 
                 // ── Shutter ──
                 GestureDetector(
@@ -660,40 +655,41 @@ class _BottomControls extends StatelessWidget {
                 ),
 
                 // File Name
-                _BottomNavBtn(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FileNameView())),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
-                        child: const Icon(Icons.drive_file_rename_outline_rounded, color: Colors.white70, size: 22),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text('File Name', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                    ],
-                  ),
-                ),
+                // _BottomNavBtn(
+                //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FileNameView())),
+                //   child: Column(
+                //     mainAxisSize: MainAxisSize.min,
+                //     children: [
+                //       Container(
+                //         width: 44,
+                //         height: 44,
+                //         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
+                //         child: const Icon(Icons.drive_file_rename_outline_rounded, color: Colors.white70, size: 22),
+                //       ),
+                //       const SizedBox(height: 5),
+                //       const Text('File Name', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                //     ],
+                //   ),
+                // ),
 
                 // Template
-                _BottomNavBtn(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TemplatesView())),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
-                        child: const Icon(Icons.grid_view_rounded, color: Colors.white70, size: 22),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text('Template', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                    ],
-                  ),
-                ),
+                // _BottomNavBtn(
+                //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TemplatesView())),
+                //   child: Column(
+                //     mainAxisSize: MainAxisSize.min,
+                //     children: [
+                //       Container(
+                //         width: 44,
+                //         height: 44,
+                //         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white.withOpacity(0.06)),
+                //         child: const Icon(Icons.grid_view_rounded, color: Colors.white70, size: 22),
+                //       ),
+                //       const SizedBox(height: 5),
+                //       const Text('Template', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                //     ],
+                //   ),
+                // ),
+                SizedBox(width: 44, height: 44),
               ],
             ),
           ),

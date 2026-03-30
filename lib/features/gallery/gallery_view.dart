@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/app_models.dart';
 import 'gallery_controller.dart';
+import 'gallery_local_image.dart';
 
 class GalleryView extends ConsumerWidget {
   const GalleryView({super.key});
@@ -19,10 +23,6 @@ class GalleryView extends ConsumerWidget {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Icons.sort_rounded), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.filter_list_rounded), onPressed: () {}),
-        ],
       ),
       body: Column(
         children: [
@@ -40,7 +40,9 @@ class GalleryView extends ConsumerWidget {
           ),
           // Grid
           Expanded(
-            child: state.photos.isEmpty
+            child: state.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : state.photos.isEmpty
                 ? const _EmptyGallery()
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
@@ -91,21 +93,26 @@ class _PhotoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Simulated photo
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade800,
-                    Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade400,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: galleryLocalImage(
+                photo.filePath,
+                fit: BoxFit.cover,
+                fallback: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade800,
+                        Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade400,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(child: Icon(Icons.image_rounded, color: Colors.white30, size: 28)),
                 ),
               ),
             ),
-            const Center(child: Icon(Icons.image_rounded, color: Colors.white30, size: 28)),
             // GPS badge
             Positioned(
               bottom: 4,
@@ -124,6 +131,48 @@ class _PhotoTile extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _shareGeoPhoto(BuildContext context, GeoPhoto photo) async {
+  final path = photo.filePath;
+  if (!File(path).existsSync()) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo file not found')));
+    }
+    return;
+  }
+  Rect? shareOrigin;
+  final ro = context.findRenderObject();
+  if (ro is RenderBox && ro.hasSize) {
+    final topLeft = ro.localToGlobal(Offset.zero);
+    shareOrigin = Rect.fromLTWH(topLeft.dx, topLeft.dy, ro.size.width, ro.size.height);
+  }
+  try {
+    await SharePlus.instance.share(ShareParams(files: [XFile(path)], sharePositionOrigin: shareOrigin));
+  } catch (e) {
+    if (context.mounted) {
+      debugPrint('Could not share: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not share: $e')));
+    }
+  }
+}
+
+Widget _galleryDetailImage(GeoPhoto photo) {
+  return galleryLocalImage(
+    photo.filePath,
+    fit: BoxFit.contain,
+    fallback: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade800,
+            Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade400,
+          ],
+        ),
+      ),
+      child: const Center(child: Icon(Icons.image_rounded, color: Colors.white30, size: 60)),
+    ),
+  );
 }
 
 class _PhotoDetailSheet extends StatelessWidget {
@@ -157,19 +206,23 @@ class _PhotoDetailSheet extends StatelessWidget {
                   ),
                 ),
                 // Photo preview
-                Container(
-                  height: 220,
-                  margin: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade800,
-                        Colors.primaries[photo.id.hashCode % Colors.primaries.length].shade400,
-                      ],
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (ctx) => Scaffold(
+                        backgroundColor: Colors.black,
+                        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, elevation: 0),
+                        body: Center(child: _galleryDetailImage(photo)),
+                      ),
                     ),
                   ),
-                  child: const Center(child: Icon(Icons.image_rounded, color: Colors.white30, size: 60)),
+                  child: Container(
+                    height: 220,
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFF2C3E50)),
+                    clipBehavior: Clip.antiAlias,
+                    child: _galleryDetailImage(photo),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -201,11 +254,13 @@ class _PhotoDetailSheet extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: _ActionButton(
-                              icon: Icons.share_rounded,
-                              label: 'Share',
-                              onTap: () {},
-                              color: AppColors.secondary,
+                            child: Builder(
+                              builder: (shareContext) => _ActionButton(
+                                icon: Icons.share_rounded,
+                                label: 'Share',
+                                onTap: () => _shareGeoPhoto(shareContext, photo),
+                                color: AppColors.secondary,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -213,9 +268,9 @@ class _PhotoDetailSheet extends StatelessWidget {
                             child: _ActionButton(
                               icon: Icons.delete_outline_rounded,
                               label: 'Delete',
-                              onTap: () {
-                                ref.read(galleryControllerProvider.notifier).deletePhoto(photo.id);
-                                Navigator.pop(context);
+                              onTap: () async {
+                                await ref.read(galleryControllerProvider.notifier).deletePhoto(photo.id);
+                                if (context.mounted) Navigator.pop(context);
                               },
                               color: AppColors.error,
                             ),

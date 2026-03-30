@@ -6,12 +6,7 @@ class GpsCoordinate {
   final double? altitude;
   final double? accuracy;
 
-  const GpsCoordinate({
-    required this.latitude,
-    required this.longitude,
-    this.altitude,
-    this.accuracy,
-  });
+  const GpsCoordinate({required this.latitude, required this.longitude, this.altitude, this.accuracy});
 
   String get latDMS {
     final d = latitude.abs().floor();
@@ -29,11 +24,21 @@ class GpsCoordinate {
     return '$d°$m\'${s.toStringAsFixed(1)}"$dir';
   }
 
-  String get decimal =>
-      '${latitude.toStringAsFixed(6)}°, ${longitude.toStringAsFixed(6)}°';
+  String get decimal => '${latitude.toStringAsFixed(6)}°, ${longitude.toStringAsFixed(6)}°';
 
   @override
   String toString() => decimal;
+
+  Map<String, dynamic> toJson() => {'latitude': latitude, 'longitude': longitude, 'altitude': altitude, 'accuracy': accuracy};
+
+  factory GpsCoordinate.fromJson(Map<String, dynamic> json) {
+    return GpsCoordinate(
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      altitude: (json['altitude'] as num?)?.toDouble(),
+      accuracy: (json['accuracy'] as num?)?.toDouble(),
+    );
+  }
 }
 
 // ─── Stamp Configuration ──────────────────────────────────────────────────────
@@ -42,12 +47,7 @@ enum MapType { normal, satellite, terrain, hybrid }
 
 enum CoordinateFormat { decimal, dms }
 
-enum DateFormat {
-  ddMMyyyy,
-  mmDDyyyy,
-  yyyyMMdd,
-  longFormat,
-}
+enum DateFormat { ddMMyyyy, mmDDyyyy, yyyyMMdd, longFormat }
 
 enum TimeFormat { h12, h24 }
 
@@ -155,6 +155,68 @@ class StampConfig {
       mapZoom: mapZoom ?? this.mapZoom,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'showLocation': showLocation,
+    'showCoordinates': showCoordinates,
+    'showMap': showMap,
+    'showDate': showDate,
+    'showTime': showTime,
+    'showAltitude': showAltitude,
+    'showAccuracy': showAccuracy,
+    'showCompass': showCompass,
+    'showAddress': showAddress,
+    'showLogo': showLogo,
+    'showNote': showNote,
+    'showPersonName': showPersonName,
+    'showContactNumber': showContactNumber,
+    'mapType': mapType.name,
+    'coordinateFormat': coordinateFormat.name,
+    'dateFormat': dateFormat.name,
+    'timeFormat': timeFormat.name,
+    'stampPosition': stampPosition.name,
+    'logoPath': logoPath,
+    'note': note,
+    'personName': personName,
+    'contactNumber': contactNumber,
+    'mapZoom': mapZoom,
+  };
+
+  factory StampConfig.fromJson(Map<String, dynamic> json) {
+    T enumByName<T extends Enum>(Iterable<T> values, String? name, T fallback) {
+      if (name == null) return fallback;
+      for (final v in values) {
+        if (v.name == name) return v;
+      }
+      return fallback;
+    }
+
+    return StampConfig(
+      showLocation: json['showLocation'] as bool? ?? true,
+      showCoordinates: json['showCoordinates'] as bool? ?? true,
+      showMap: json['showMap'] as bool? ?? true,
+      showDate: json['showDate'] as bool? ?? true,
+      showTime: json['showTime'] as bool? ?? true,
+      showAltitude: json['showAltitude'] as bool? ?? false,
+      showAccuracy: json['showAccuracy'] as bool? ?? false,
+      showCompass: json['showCompass'] as bool? ?? false,
+      showAddress: json['showAddress'] as bool? ?? true,
+      showLogo: json['showLogo'] as bool? ?? false,
+      showNote: json['showNote'] as bool? ?? false,
+      showPersonName: json['showPersonName'] as bool? ?? false,
+      showContactNumber: json['showContactNumber'] as bool? ?? false,
+      mapType: enumByName(MapType.values, json['mapType'] as String?, MapType.normal),
+      coordinateFormat: enumByName(CoordinateFormat.values, json['coordinateFormat'] as String?, CoordinateFormat.decimal),
+      dateFormat: enumByName(DateFormat.values, json['dateFormat'] as String?, DateFormat.ddMMyyyy),
+      timeFormat: enumByName(TimeFormat.values, json['timeFormat'] as String?, TimeFormat.h24),
+      stampPosition: enumByName(StampPosition.values, json['stampPosition'] as String?, StampPosition.bottomLeft),
+      logoPath: json['logoPath'] as String?,
+      note: json['note'] as String?,
+      personName: json['personName'] as String?,
+      contactNumber: json['contactNumber'] as String?,
+      mapZoom: (json['mapZoom'] as num?)?.toDouble() ?? 14.0,
+    );
+  }
 }
 
 // ─── Captured Photo ───────────────────────────────────────────────────────────
@@ -179,6 +241,30 @@ class GeoPhoto {
     required this.stampConfig,
     this.compassBearing,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'filePath': filePath,
+    'originalFilePath': originalFilePath,
+    'coordinate': coordinate.toJson(),
+    'address': address,
+    'capturedAt': capturedAt.toIso8601String(),
+    'stampConfig': stampConfig.toJson(),
+    'compassBearing': compassBearing,
+  };
+
+  factory GeoPhoto.fromJson(Map<String, dynamic> json) {
+    return GeoPhoto(
+      id: json['id'] as String,
+      filePath: json['filePath'] as String,
+      originalFilePath: json['originalFilePath'] as String?,
+      coordinate: GpsCoordinate.fromJson(Map<String, dynamic>.from(json['coordinate'] as Map)),
+      address: json['address'] as String,
+      capturedAt: DateTime.parse(json['capturedAt'] as String),
+      stampConfig: StampConfig.fromJson(Map<String, dynamic>.from(json['stampConfig'] as Map)),
+      compassBearing: (json['compassBearing'] as num?)?.toDouble(),
+    );
+  }
 }
 
 // ─── Location (manual / saved) ────────────────────────────────────────────────

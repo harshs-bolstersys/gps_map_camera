@@ -1,269 +1,234 @@
-// import 'dart:developer';
-// import 'package:flutter/material.dart';
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:geolocator/geolocator.dart';
-// import 'package:geocoding/geocoding.dart';
-// import 'package:gps_map_camera/services/storage_services.dart';
+import 'dart:async';
 
-// final locationControllerProvider = NotifierProvider<LocationController, Position?>(LocationController.new);
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:gps_map_camera/models/app_models.dart';
+import 'package:gps_map_camera/services/storage_services.dart';
 
-// class LocationController extends Notifier<Position?> {
-//   // Public keys for accessing SharedPreferences location data
-//   static const latitudeKey = 'latitude';
-//   static const longitudeKey = 'longitude';
-//   static const _locationPermissionKey = 'location_permission_granted';
-//   static const cityKey = 'city';
-//   static const stateKey = 'state';
-//   static const _isManuallySelectedKey = 'is_location_manually_selected';
+// ─── Cache keys (same idea as previous app; namespaced for this project) ─────
 
-//   // Keep private keys for backward compatibility
-//   static const _latitudeKey = latitudeKey;
-//   static const _longitudeKey = longitudeKey;
-//   static const _cityKey = cityKey;
-//   static const _stateKey = stateKey;
+const _latitudeKey = 'location_svc_latitude';
+const _longitudeKey = 'location_svc_longitude';
+const _addressKey = 'location_svc_address';
+const _altitudeKey = 'location_svc_altitude';
+const _accuracyKey = 'location_svc_accuracy';
+const _headingKey = 'location_svc_heading';
 
-//   @override
-//   Position? build() {
-//     return null; // start with null
-//   }
+/// One resolved GPS + address snapshot for the camera stamp.
+class LocationSnapshot {
+  final GpsCoordinate coordinate;
+  final String address;
+  final double? compassBearing;
 
-//   Future<Position?> loadCachedLocation() async {
-//     final lat = await SharedPrefHelper.getString(_latitudeKey);
-//     final lng = await SharedPrefHelper.getString(_longitudeKey);
-//     final city = await SharedPrefHelper.getString(_cityKey);
-//     final stateName = await SharedPrefHelper.getString(_stateKey);
+  const LocationSnapshot({required this.coordinate, required this.address, this.compassBearing});
+}
 
-//     if (lat != null && lng != null) {
-//       log(
-//         "LocationController: Cached Location ------------------------------------------------> Lat: $lat, Lng: $lng, City: $city, State: $stateName",
-//       );
+/// Why live GPS could not be used (no [BuildContext] — UI can map this to dialogs).
+enum LocationAccessIssue { none, serviceDisabled, denied, deniedForever }
 
-//       final position = Position(
-//         latitude: double.parse(lat),
-//         longitude: double.parse(lng),
-//         timestamp: DateTime.now(),
-//         accuracy: 1,
-//         altitude: 0,
-//         heading: 0,
-//         speed: 0,
-//         speedAccuracy: 0,
-//         altitudeAccuracy: 0,
-//         headingAccuracy: 0,
-//       );
+/// Fetches GPS, reverse-geocodes via [placemarkFromCoordinates], caches last good fix.
+class LocationService {
+  StreamSubscription<Position>? _positionSub;
+  Timer? _geocodeDebounce;
+  double? _lastGeocodeLat;
+  double? _lastGeocodeLng;
+  DateTime? _lastGeocodeAt;
+  String _lastResolvedAddress = '';
 
-//       state = position;
-//       return position;
-//     }
-//     return null;
-//   }
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
+  static const Duration _positionTimeout = Duration(seconds: 20);
+  static const Duration _geocodeTimeout = Duration(seconds: 10);
+  static const Duration _minGeocodeGap = Duration(seconds: 45);
+  static const double _minGeocodeMoveMeters = 75;
 
-//   bool isReturningFromSettings = false;
+  /// Check device location service + app permission (does not show dialogs).
+  Future<LocationAccessIssue> checkAccess() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return LocationAccessIssue.serviceDisabled;
+    }
+    var p = await Geolocator.checkPermission();
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
+    }
+    if (p == LocationPermission.denied) return LocationAccessIssue.denied;
+    if (p == LocationPermission.deniedForever) return LocationAccessIssue.deniedForever;
+    return LocationAccessIssue.none;
+  }
 
-//   /// Check if location was manually selected (not from GPS)
-//   Future<bool> isLocationManuallySelected() async {
-//     return await SharedPrefHelper.getBool(_isManuallySelectedKey) ?? false;
-//   }
+  String _accessMessage(LocationAccessIssue issue) {
+    switch (issue) {
+      case LocationAccessIssue.serviceDisabled:
+        return 'Turn on location services';
+      case LocationAccessIssue.denied:
+        return 'Location permission denied';
+      case LocationAccessIssue.deniedForever:
+        return 'Location blocked — enable in Settings';
+      case LocationAccessIssue.none:
+        return '';
+    }
+  }
 
-//   /// Set the manual selection flag
-//   Future<void> setLocationManuallySelected(bool isManual) async {
-//     await SharedPrefHelper.setBool(_isManuallySelectedKey, isManual);
-//   }
+  /// Last saved snapshot from disk (no GPS).
+  Future<LocationSnapshot?> loadCachedSnapshot() async {
+    final latStr = await SharedPrefHelper.getString(_latitudeKey);
+    final lngStr = await SharedPrefHelper.getString(_longitudeKey);
+    if (latStr == null || lngStr == null) return null;
+    final lat = double.tryParse(latStr);
+    final lng = double.tryParse(lngStr);
+    if (lat == null || lng == null) return null;
 
-//   Future<void> requestAndSaveLocation({BuildContext? context, int retryCount = 0, bool forceGPS = false}) async {
-//     const maxRetries = 3;
-//     const retryDelay = Duration(seconds: 2);
+    final altStr = await SharedPrefHelper.getString(_altitudeKey);
+    final accStr = await SharedPrefHelper.getString(_accuracyKey);
+    final hStr = await SharedPrefHelper.getString(_headingKey);
+    final address = await SharedPrefHelper.getString(_addressKey) ?? '';
+    _lastResolvedAddress = address;
 
-//     // If location was manually selected and we're not forcing GPS, just load cached location
-//     if (!forceGPS && await isLocationManuallySelected()) {
-//       log("LocationController: Location was manually selected, loading cached location instead of fetching GPS");
-//       await loadCachedLocation();
-//       return;
-//     }
+    return LocationSnapshot(
+      coordinate: GpsCoordinate(
+        latitude: lat,
+        longitude: lng,
+        altitude: altStr != null ? double.tryParse(altStr) : null,
+        accuracy: accStr != null ? double.tryParse(accStr) : null,
+      ),
+      address: address.isEmpty ? 'Cached coordinates (no address)' : address,
+      compassBearing: hStr != null ? double.tryParse(hStr) : null,
+    );
+  }
 
-//     try {
-//       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-//       if (!serviceEnabled) {
-//         log("LocationController: Location services are disabled");
-//         state = null;
-//         if (context != null) {
-//           await showEnableLocationServicesDialog(
-//             context: context,
-//             onEnablePressed: () async {
-//               isReturningFromSettings = true;
-//               Navigator.of(context).pop();
-//               await Geolocator.openLocationSettings();
-//               // Do NOT recheck here; handled on resume
-//             },
-//           );
-//         }
-//         return;
-//       }
+  Future<void> _persistSnapshot(LocationSnapshot s) async {
+    await SharedPrefHelper.setString(_latitudeKey, s.coordinate.latitude.toString());
+    await SharedPrefHelper.setString(_longitudeKey, s.coordinate.longitude.toString());
+    await SharedPrefHelper.setString(_addressKey, s.address);
+    if (s.coordinate.altitude != null) {
+      await SharedPrefHelper.setString(_altitudeKey, s.coordinate.altitude!.toString());
+    }
+    if (s.coordinate.accuracy != null) {
+      await SharedPrefHelper.setString(_accuracyKey, s.coordinate.accuracy!.toString());
+    }
+    if (s.compassBearing != null) {
+      await SharedPrefHelper.setString(_headingKey, s.compassBearing!.toString());
+    }
+  }
 
-//       var permission = await Geolocator.checkPermission();
+  String _formatAddress(Placemark p) {
+    final parts = <String?>[
+      p.thoroughfare != null && p.subThoroughfare != null ? '${p.subThoroughfare} ${p.thoroughfare}' : p.street ?? p.thoroughfare,
+      p.subLocality,
+      p.locality,
+      p.administrativeArea,
+      p.postalCode,
+      p.country,
+    ].whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return '';
+    return parts.join(', ');
+  }
 
-//       // Case: Denied (not forever)
-//       if (permission == LocationPermission.denied) {
-//         permission = await Geolocator.requestPermission();
-//         if (permission == LocationPermission.denied) {
-//           log("LocationController: Location permission denied");
-//           state = null;
+  Future<String> _reverseGeocode(double lat, double lng) async {
+    try {
+      final list = await placemarkFromCoordinates(lat, lng).timeout(_geocodeTimeout);
+      if (list.isEmpty) return '';
+      return _formatAddress(list.first);
+    } catch (_) {
+      return '';
+    }
+  }
 
-//           if (context != null) {
-//             await showLocationPermissionDialog(
-//               context: context,
-//               Sure_onPressed: () async {
-//                 Navigator.of(context).pop();
-//                 await requestAndSaveLocation(context: context);
-//               },
-//               isForeverDenied: false,
-//             );
-//           }
-//           return;
-//         }
-//       }
+  bool _shouldGeocodeAgain(double lat, double lng) {
+    final now = DateTime.now();
+    if (_lastGeocodeAt == null || _lastGeocodeLat == null || _lastGeocodeLng == null) {
+      return true;
+    }
+    if (now.difference(_lastGeocodeAt!) < _minGeocodeGap) {
+      final moved = Geolocator.distanceBetween(_lastGeocodeLat!, _lastGeocodeLng!, lat, lng);
+      if (moved < _minGeocodeMoveMeters) return false;
+    }
+    return true;
+  }
 
-//       if (permission == LocationPermission.deniedForever) {
-//         log("LocationController: Location permission denied forever");
-//         state = null;
-//         if (context != null) {
-//           await showLocationPermissionDialog(
-//             context: context,
-//             Sure_onPressed: () async {
-//               isReturningFromSettings = true;
-//               Navigator.of(context).pop(); // Pop the dialog
-//               await Geolocator.openAppSettings();
-//               // Do NOT recheck here
-//             },
-//             isForeverDenied: true,
-//           );
-//         }
-//         return;
-//       }
+  Future<LocationSnapshot> _snapshotFromPosition(Position pos, {bool forceGeocode = false}) async {
+    final coord = GpsCoordinate(latitude: pos.latitude, longitude: pos.longitude, altitude: pos.altitude, accuracy: pos.accuracy);
+    double? bearing;
+    if (pos.heading >= 0 && pos.speed > 0.5) {
+      bearing = pos.heading;
+    }
 
-//       // Case: Granted - Get location with timeout and retry logic
-//       await _getLocationWithRetry(context: context, retryCount: retryCount, maxRetries: maxRetries, retryDelay: retryDelay);
-//     } catch (e) {
-//       log("LocationController: Error in requestAndSaveLocation: $e");
-//       if (retryCount < maxRetries) {
-//         log("LocationController: Retrying location request (${retryCount + 1}/$maxRetries)");
-//         await Future.delayed(retryDelay);
-//         await requestAndSaveLocation(context: context, retryCount: retryCount + 1);
-//       } else {
-//         log("LocationController: Max retries reached, falling back to cached location");
-//         await loadCachedLocation();
-//       }
-//     }
-//   }
+    var address = _lastResolvedAddress;
+    if (forceGeocode || _shouldGeocodeAgain(pos.latitude, pos.longitude)) {
+      final g = await _reverseGeocode(pos.latitude, pos.longitude);
+      if (g.isNotEmpty) {
+        address = g;
+        _lastResolvedAddress = g;
+      }
+      _lastGeocodeLat = pos.latitude;
+      _lastGeocodeLng = pos.longitude;
+      _lastGeocodeAt = DateTime.now();
+    }
+    if (address.isEmpty) {
+      address = '${pos.latitude.toStringAsFixed(6)}°, ${pos.longitude.toStringAsFixed(6)}°';
+    }
 
-//   Future<void> _getLocationWithRetry({
-//     BuildContext? context,
-//     int retryCount = 0,
-//     int maxRetries = 3,
-//     Duration retryDelay = const Duration(seconds: 2),
-//   }) async {
-//     try {
-//       // Add timeout to prevent hanging
-//       final pos =
-//           await Geolocator.getCurrentPosition(
-//             desiredAccuracy: LocationAccuracy.high,
-//             timeLimit: const Duration(seconds: 15), // 15 second timeout
-//           ).timeout(
-//             const Duration(seconds: 20), // Overall timeout including geocoding
-//             onTimeout: () {
-//               throw Exception('Location request timed out');
-//             },
-//           );
+    return LocationSnapshot(coordinate: coord, address: address, compassBearing: bearing);
+  }
 
-//       // Get placemarks with error handling
-//       List<Placemark> placemarks = [];
-//       try {
-//         placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude).timeout(const Duration(seconds: 10));
-//       } catch (geocodingError) {
-//         log("LocationController: Geocoding failed, using coordinates only: $geocodingError");
-//         // Continue with empty placemarks - we still have coordinates
-//       }
+  /// Single high-accuracy fix + geocode + cache (with retries like the old controller).
+  Future<({LocationSnapshot? snapshot, String? errorMessage})> fetchCurrentLocation({int retryCount = 0}) async {
+    final access = await checkAccess();
+    if (access != LocationAccessIssue.none) {
+      return (snapshot: null, errorMessage: _accessMessage(access));
+    }
 
-//       String city = placemarks.isNotEmpty ? (placemarks.first.locality ?? "") : "";
-//       String stateName = placemarks.isNotEmpty ? (placemarks.first.administrativeArea ?? "") : "";
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      ).timeout(_positionTimeout);
 
-//       // Save to shared preferences
-//       await SharedPrefHelper.setString(_latitudeKey, pos.latitude.toString());
-//       await SharedPrefHelper.setString(_longitudeKey, pos.longitude.toString());
-//       await SharedPrefHelper.setString(_cityKey, city);
-//       await SharedPrefHelper.setString(_stateKey, stateName);
-//       await SharedPrefHelper.setBool(_locationPermissionKey, true);
-//       // Clear manual selection flag when getting GPS location
-//       await setLocationManuallySelected(false);
+      final snapshot = await _snapshotFromPosition(pos, forceGeocode: true);
+      await _persistSnapshot(snapshot);
+      return (snapshot: snapshot, errorMessage: null);
+    } catch (e) {
+      final msg = e.toString();
+      final recoverable = msg.contains('TimeoutException') || msg.contains('IO_ERROR') || msg.contains('Service not available');
 
-//       log(
-//         "LocationController: Live Location --------------------------------------------------> Lat: ${pos.latitude}, Lng: ${pos.longitude}, City: $city, State: $stateName",
-//       );
+      if (recoverable && retryCount < _maxRetries) {
+        await Future<void>.delayed(_retryDelay);
+        return fetchCurrentLocation(retryCount: retryCount + 1);
+      }
 
-//       state = pos;
-//     } catch (e) {
-//       log("LocationController: Error getting location (attempt ${retryCount + 1}): $e");
+      final cached = await loadCachedSnapshot();
+      if (cached != null) {
+        return (snapshot: cached, errorMessage: null);
+      }
+      return (snapshot: null, errorMessage: 'Could not get location');
+    }
+  }
 
-//       // Check if it's a DeadObjectException or similar recoverable error
-//       if (e.toString().contains('DeadObjectException') ||
-//           e.toString().contains('IO_ERROR') ||
-//           e.toString().contains('Service not available')) {
-//         if (retryCount < maxRetries) {
-//           log("LocationController: Recoverable error detected, retrying in ${retryDelay.inSeconds}s...");
-//           await Future.delayed(retryDelay);
-//           await _getLocationWithRetry(
-//             context: context,
-//             retryCount: retryCount + 1,
-//             maxRetries: maxRetries,
-//             retryDelay: retryDelay,
-//           );
-//         } else {
-//           log("LocationController: Max retries reached for location request, using cached location");
-//           await loadCachedLocation();
-//         }
-//       } else {
-//         // Non-recoverable error, use cached location
-//         log("LocationController: Non-recoverable error, using cached location");
-//         await loadCachedLocation();
-//       }
-//     }
-//   }
+  /// Live updates: moves coordinates often; reverse-geocode is debounced / distance-throttled.
+  void startWatching(void Function(LocationSnapshot s) onData, {void Function(String message)? onError}) {
+    stopWatching();
+    _positionSub =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 15),
+        ).listen((pos) {
+          _geocodeDebounce?.cancel();
+          _geocodeDebounce = Timer(const Duration(milliseconds: 800), () async {
+            try {
+              final snap = await _snapshotFromPosition(pos, forceGeocode: false);
+              await _persistSnapshot(snap);
+              onData(snap);
+            } catch (e) {
+              onError?.call(e.toString());
+            }
+          });
+        }, onError: (e) => onError?.call(e.toString()));
+  }
 
-//   Future<bool?> isPermissionGranted() async {
-//     return SharedPrefHelper.getBool(_locationPermissionKey);
-//   }
+  void stopWatching() {
+    _geocodeDebounce?.cancel();
+    _geocodeDebounce = null;
+    _positionSub?.cancel();
+    _positionSub = null;
+  }
 
-//   /// Method to handle app lifecycle changes and recover from DeadObjectException
-//   Future<void> handleAppResume({BuildContext? context}) async {
-//     if (isReturningFromSettings) {
-//       isReturningFromSettings = false;
-//       // Add a small delay to ensure the system is ready
-//       await Future.delayed(const Duration(milliseconds: 500));
-//       // Force GPS fetch when returning from settings (user explicitly enabled location)
-//       await requestAndSaveLocation(context: context, forceGPS: true);
-//     } else {
-//       // On normal app resume, check if location was manually selected
-//       // If yes, just load cached location; if no, try to get fresh GPS
-//       final isManual = await isLocationManuallySelected();
-//       if (isManual) {
-//         log("LocationController: App resumed with manually selected location, loading cached location");
-//         await loadCachedLocation();
-//       } else {
-//         // Only fetch fresh GPS if location wasn't manually selected
-//         await requestAndSaveLocation(context: context, forceGPS: false);
-//       }
-//     }
-//   }
-
-//   /// Method to safely get location with fallback to cached location
-//   Future<Position?> getLocationSafely({BuildContext? context, bool forceGPS = false}) async {
-//     try {
-//       // First try to get fresh location (respects manual selection flag unless forceGPS is true)
-//       await requestAndSaveLocation(context: context, forceGPS: forceGPS);
-//       return state;
-//     } catch (e) {
-//       log("LocationController: Failed to get fresh location, using cached: $e");
-//       // Fallback to cached location
-//       return await loadCachedLocation();
-//     }
-//   }
-// }
+  void dispose() => stopWatching();
+}
