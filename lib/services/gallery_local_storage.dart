@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:gal/gal.dart';
 import 'package:gps_map_camera/models/app_models.dart';
+import 'package:path_provider/path_provider.dart';
 import 'storage_services.dart';
 
 /// Persists gallery metadata via [SharedPrefHelper] and image files on disk.
@@ -30,17 +32,49 @@ class GalleryLocalStorage {
     await SharedPrefHelper.setString(_photosJsonKey, encoded);
   }
 
-  /// Copies the camera temp file into a private app folder under [Directory.systemTemp].
-  ///
-  /// This does not use the system Photos gallery and avoids [path_provider], which on some
-  /// iOS setups can fail when its Foundation FFI / native assets are unavailable.
+  static Future<Directory> _ensureCaptureDirectory() async {
+    try {
+      final base = await getApplicationDocumentsDirectory();
+      final folder = Directory('${base.path}/$_capturesSubdir');
+      if (!await folder.exists()) await folder.create(recursive: true);
+      return folder;
+    } catch (e, st) {
+      // Fallback keeps capture working even if path_provider fails unexpectedly.
+      debugPrint('GalleryLocalStorage._ensureCaptureDirectory fallback: $e\n$st');
+      final folder = Directory('${Directory.systemTemp.path}/$_capturesSubdir');
+      if (!await folder.exists()) await folder.create(recursive: true);
+      return folder;
+    }
+  }
+
+  /// Copies the camera temp file into a private app folder under application documents.
+  /// This path is app-owned and survives normal cache/temp cleanup.
   static Future<String> copyCaptureToAppDirectory(String tempPath) async {
-    final folder = Directory('${Directory.systemTemp.path}/$_capturesSubdir');
-    if (!await folder.exists()) await folder.create(recursive: true);
+    final folder = await _ensureCaptureDirectory();
     final name = 'img_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final dest = File('${folder.path}/$name');
     await File(tempPath).copy(dest.path);
     return dest.path;
+  }
+
+  static Future<List<GeoPhoto>> removeMissingFiles(List<GeoPhoto> photos) async {
+    final existing = <GeoPhoto>[];
+    for (final photo in photos) {
+      final file = File(photo.filePath);
+      if (await file.exists()) {
+        existing.add(photo);
+      }
+    }
+    return existing;
+  }
+
+  /// Best-effort backup to the system Photos gallery.
+  static Future<void> backupToSystemGallery(String filePath) async {
+    try {
+      await Gal.putImage(filePath, album: 'GPS Map Camera');
+    } catch (e, st) {
+      debugPrint('GalleryLocalStorage.backupToSystemGallery failed: $e\n$st');
+    }
   }
 
   static Future<void> deletePhotoFiles(GeoPhoto photo) async {

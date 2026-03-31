@@ -49,6 +49,14 @@ class SettingsView extends ConsumerWidget {
                   if (v != cameraState.gridEnabled) cameraCtrl.toggleGrid();
                 },
               ),
+              _SettingsTile(
+                icon: Icons.photo,
+                title: 'Saved to Gallery',
+                value: cameraState.saveToGallery,
+                onChanged: (v) {
+                  if (v != cameraState.saveToGallery) cameraCtrl.toggleSaveToGallery();
+                },
+              ),
             ],
           ),
 

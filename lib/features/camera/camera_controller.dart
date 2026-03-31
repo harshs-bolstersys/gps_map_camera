@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart' as cam;
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/models/app_models.dart';
@@ -15,6 +16,7 @@ class CameraState {
   final bool flashOn;
   final bool frontCamera;
   final bool gridEnabled;
+  final bool saveToGallery;
   final GpsCoordinate? currentLocation;
   final String currentAddress;
   final double? compassBearing;
@@ -29,6 +31,7 @@ class CameraState {
     this.flashOn = false,
     this.frontCamera = false,
     this.gridEnabled = false,
+    this.saveToGallery = true,
     this.currentLocation,
     this.currentAddress = 'Fetching location...',
     this.compassBearing,
@@ -44,6 +47,7 @@ class CameraState {
     bool? flashOn,
     bool? frontCamera,
     bool? gridEnabled,
+    bool? saveToGallery,
     GpsCoordinate? currentLocation,
     String? currentAddress,
     double? compassBearing,
@@ -58,6 +62,7 @@ class CameraState {
       flashOn: flashOn ?? this.flashOn,
       frontCamera: frontCamera ?? this.frontCamera,
       gridEnabled: gridEnabled ?? this.gridEnabled,
+      saveToGallery: saveToGallery ?? this.saveToGallery,
       currentLocation: currentLocation ?? this.currentLocation,
       currentAddress: currentAddress ?? this.currentAddress,
       compassBearing: compassBearing ?? this.compassBearing,
@@ -123,6 +128,7 @@ class CameraController extends StateNotifier<CameraState> {
   }
 
   void toggleGrid() => state = state.copyWith(gridEnabled: !state.gridEnabled);
+  void toggleSaveToGallery() => state = state.copyWith(saveToGallery: !state.saveToGallery);
   void updateStampConfig(StampConfig config) => state = state.copyWith(stampConfig: config);
 
   Future<void> capturePhoto() async {
@@ -164,6 +170,9 @@ class CameraController extends StateNotifier<CameraState> {
         compassBearing: state.compassBearing,
       );
       await _ref.read(galleryControllerProvider.notifier).addPhoto(photo);
+      if (state.saveToGallery) {
+        unawaited(GalleryLocalStorage.backupToSystemGallery(savedPath));
+      }
       state = state.copyWith(isCapturing: false, lastCapturedPath: savedPath);
     } catch (e, st) {
       debugPrint('capturePhoto failed: $e\n$st');

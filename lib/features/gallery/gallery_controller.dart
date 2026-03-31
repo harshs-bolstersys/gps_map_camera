@@ -28,7 +28,11 @@ class GalleryController extends StateNotifier<GalleryState> {
 
   Future<void> _load() async {
     final photos = await GalleryLocalStorage.loadPhotos();
-    state = state.copyWith(photos: photos, isLoading: false);
+    final existing = await GalleryLocalStorage.removeMissingFiles(photos);
+    if (existing.length != photos.length) {
+      await GalleryLocalStorage.persistPhotos(existing);
+    }
+    state = state.copyWith(photos: existing, isLoading: false);
   }
 
   void selectPhoto(GeoPhoto photo) => state = state.copyWith(selectedPhoto: photo);
