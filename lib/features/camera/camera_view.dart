@@ -2,6 +2,7 @@ import 'package:camera/camera.dart' as cam;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gps_map_camera/core/constants/image_constant.dart';
 import 'package:gps_map_camera/features/settings/settings_view.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'camera_controller.dart';
@@ -409,15 +410,10 @@ class _GpsStampPreview extends StatelessWidget {
                     // App branding
                     Row(
                       children: [
-                        Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(3)),
-                          child: const Icon(Icons.camera_alt, size: 9, color: Colors.white),
-                        ),
+                        Image.asset(ImageConstants.mainLogo, width: 14, height: 14),
                         const SizedBox(width: 4),
                         const Text(
-                          'GPS Map Camera',
+                          'GPS CAM',
                           style: TextStyle(
                             color: AppColors.primary,
                             fontSize: 9,
@@ -440,12 +436,12 @@ class _GpsStampPreview extends StatelessWidget {
                     // Coordinates
                     Text(
                       'Lat ${loc.latitude.toStringAsFixed(6)}°  Long ${loc.longitude.toStringAsFixed(6)}°',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9),
+                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 9),
                     ),
                     const SizedBox(height: 2),
 
                     // Date & time
-                    Text('$dateStr - $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
+                    Text('$dateStr - $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 9)),
 
                     // Optional extras
                     if (state.stampConfig.showAltitude && state.altitude != null) ...[

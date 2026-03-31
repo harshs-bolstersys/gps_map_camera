@@ -17,7 +17,5 @@ class ImageConstants {
   /// icons ----------------------------------------------------------------------->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   // auth icons
-  static String googleIcon = "$iconPath/google_icon.png";
-  static String appleIcon = "$iconPath/apple_icon.png";
-  static String emailIcon = "$iconPath/mail_icon.png";
+  static String mainLogo = "$iconPath/1_gps_camera.png";
 }

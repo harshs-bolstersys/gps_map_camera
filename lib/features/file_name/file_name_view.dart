@@ -124,7 +124,7 @@ class FileNameView extends ConsumerWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Files are saved automatically to the GPS Map Camera folder in your gallery.',
+                    'Files are saved automatically to the GPS CAM folder in your gallery.',
                     style: TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
                   ),
                 ),

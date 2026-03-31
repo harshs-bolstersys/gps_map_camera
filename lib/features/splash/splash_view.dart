@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gps_map_camera/core/constants/image_constant.dart';
 import 'package:gps_map_camera/features/camera/camera_view.dart';
 import 'package:gps_map_camera/features/onboarding/onboarding_view.dart';
 import 'package:gps_map_camera/services/storage_services.dart';
@@ -77,21 +78,12 @@ class _SplashViewState extends ConsumerState<SplashView> with SingleTickerProvid
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App logo container
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 30, spreadRadius: 5)],
-                ),
-                child: const Center(child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 58)),
-              ),
+              // App logo image
+              Image.asset(ImageConstants.mainLogo, width: 110, height: 110),
               const SizedBox(height: 28),
               // App name
               const Text(
-                'GPS Map Camera',
+                'GPS CAM',
                 style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 0.5),
               ),
               const SizedBox(height: 10),

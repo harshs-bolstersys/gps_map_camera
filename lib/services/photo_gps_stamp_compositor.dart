@@ -162,7 +162,7 @@ class PhotoGpsStampCompositor {
     final brandBox = 14.0 * ls;
     final brandLabel = TextPainter(
       text: TextSpan(
-        text: 'GPS Map Camera',
+        text: 'GPS CAM',
         style: TextStyle(color: AppColors.primary, fontSize: 9 * ls, fontWeight: FontWeight.w700, letterSpacing: 0.3),
       ),
       textDirection: TextDirection.ltr,
@@ -184,7 +184,7 @@ class PhotoGpsStampCompositor {
     final coordPainter = TextPainter(
       text: TextSpan(
         text: coordLine,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 9 * ls),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 9 * ls),
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: textMaxW);
@@ -193,7 +193,7 @@ class PhotoGpsStampCompositor {
     final datePainter = TextPainter(
       text: TextSpan(
         text: '$dateStr - $timeStr',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 9 * ls),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 9 * ls),
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: textMaxW);

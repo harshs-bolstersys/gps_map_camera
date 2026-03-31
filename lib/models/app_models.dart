@@ -318,7 +318,7 @@ class AppSettings {
   const AppSettings({
     this.saveOriginalPhoto = false,
     this.autoSaveToGallery = true,
-    this.defaultFolderName = 'GPS Map Camera',
+    this.defaultFolderName = 'GPS CAM',
     this.gridEnabled = false,
     this.frontCamera = false,
     this.flashEnabled = false,

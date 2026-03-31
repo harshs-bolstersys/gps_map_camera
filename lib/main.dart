@@ -15,7 +15,7 @@ class GPSMapCameraApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GPS Map Camera',
+      title: 'GPS CAM',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFFC107))),
       home: const SplashView(),

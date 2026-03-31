@@ -71,7 +71,7 @@ class GalleryLocalStorage {
   /// Best-effort backup to the system Photos gallery.
   static Future<void> backupToSystemGallery(String filePath) async {
     try {
-      await Gal.putImage(filePath, album: 'GPS Map Camera');
+      await Gal.putImage(filePath, album: 'GPS CAM');
     } catch (e, st) {
       debugPrint('GalleryLocalStorage.backupToSystemGallery failed: $e\n$st');
     }
