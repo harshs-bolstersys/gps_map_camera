@@ -239,9 +239,9 @@ class _PhotoDetailSheet extends StatelessWidget {
                         decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
                         child: Column(
                           children: [
-                            _InfoRow(label: 'Latitude', value: '${photo.coordinate.latitude.toStringAsFixed(6)}°'),
+                            _InfoRow(label: 'Latitude', value: '${photo.coordinate.latitude}°'),
                             const Divider(height: 12),
-                            _InfoRow(label: 'Longitude', value: '${photo.coordinate.longitude.toStringAsFixed(6)}°'),
+                            _InfoRow(label: 'Longitude', value: '${photo.coordinate.longitude}°'),
                             const Divider(height: 12),
                             _InfoRow(label: 'Altitude', value: '${photo.coordinate.altitude?.toStringAsFixed(1) ?? '--'}m'),
                             const Divider(height: 12),

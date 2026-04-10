@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:camera/camera.dart' as cam;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/image_constant.dart';
+import 'package:gps_map_camera/features/gallery/gallery_controller.dart';
 import 'package:gps_map_camera/features/settings/settings_view.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'camera_controller.dart';
@@ -15,6 +18,11 @@ class CameraView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(cameraControllerProvider);
     final ctrl = ref.read(cameraControllerProvider.notifier);
+
+    // for collections image
+    final latestPhotoPath = ref.watch(
+      galleryControllerProvider.select((s) => s.photos.isNotEmpty ? s.photos.first.filePath : null),
+    );
 
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
@@ -36,14 +44,18 @@ class CameraView extends ConsumerWidget {
                     Positioned.fill(child: _CameraPreviewBg(frontCamera: state.frontCamera)),
                     if (state.gridEnabled) const _GridOverlay(),
                     Positioned(bottom: 12, left: 10, right: 10, child: _GpsStampPreview(state: state)),
-                    if (state.isCapturing && state.flashOn)
-                      Container(color: Colors.white.withOpacity(state.frontCamera ? 1 : 0.0)),
+                    if (state.showCaptureOverlay)
+                      AnimatedOpacity(
+                        opacity: state.showCaptureOverlay ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 80),
+                        child: Container(color: Colors.black.withOpacity(0.5)),
+                      ),
                   ],
                 ),
               ),
 
               // ── BOTTOM CONTROLS ────────────────────────────────────
-              _BottomControls(state: state, ctrl: ctrl),
+              _BottomControls(state: state, ctrl: ctrl, latestPhotoPath: latestPhotoPath),
             ],
           ),
         ),
@@ -381,11 +393,7 @@ class _GpsStampPreview extends StatelessWidget {
     final timeStr = '$hour12:${now.minute.toString().padLeft(2, '0')} $amPm';
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.82),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
+      decoration: BoxDecoration(color: Colors.black.withOpacity(0.50), borderRadius: BorderRadius.circular(10)),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -394,8 +402,10 @@ class _GpsStampPreview extends StatelessWidget {
             ClipRRect(
               borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
               child: Container(
-                width: 62,
-                color: const Color(0xFF2D4A3E),
+                width: 75,
+                decoration: BoxDecoration(
+                  image: DecorationImage(image: AssetImage(ImageConstants.googleMapImg), fit: BoxFit.cover),
+                ),
                 child: Icon(Icons.location_on, color: Colors.red, size: 22),
               ),
             ),
@@ -429,19 +439,18 @@ class _GpsStampPreview extends StatelessWidget {
                     Text(
                       state.currentAddress,
                       style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, height: 1.2),
-                      maxLines: 2,
                     ),
                     const SizedBox(height: 3),
 
                     // Coordinates
                     Text(
-                      'Lat ${loc.latitude.toStringAsFixed(6)}°  Long ${loc.longitude.toStringAsFixed(6)}°',
+                      'Lat: ${loc.latitude}°   Long: ${loc.longitude}°',
                       style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 9),
                     ),
                     const SizedBox(height: 2),
 
                     // Date & time
-                    Text('$dateStr - $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 9)),
+                    Text('DateTime: $dateStr - $timeStr', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 9)),
 
                     // Optional extras
                     if (state.stampConfig.showAltitude && state.altitude != null) ...[
@@ -490,7 +499,8 @@ class _GpsStampPreview extends StatelessWidget {
 class _BottomControls extends StatelessWidget {
   final CameraState state;
   final CameraController ctrl;
-  const _BottomControls({required this.state, required this.ctrl});
+  final String? latestPhotoPath;
+  const _BottomControls({required this.state, required this.ctrl, this.latestPhotoPath});
 
   @override
   Widget build(BuildContext context) {
@@ -526,9 +536,14 @@ class _BottomControls extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.white24),
-                          color: Colors.white.withOpacity(0.06),
+                          color: Colors.white10,
+                          image: latestPhotoPath != null && File(latestPhotoPath!).existsSync()
+                              ? DecorationImage(image: FileImage(File(latestPhotoPath!)), fit: BoxFit.cover)
+                              : null,
                         ),
-                        child: const Icon(Icons.collections_rounded, color: Colors.white, size: 22),
+                        child: latestPhotoPath == null
+                            ? const Icon(Icons.collections_rounded, color: Colors.white38, size: 22)
+                            : null,
                       ),
                       const SizedBox(height: 5),
                       const Text('Collection', style: TextStyle(color: Colors.white54, fontSize: 10)),

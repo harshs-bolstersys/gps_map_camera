@@ -13,6 +13,8 @@ class ImageConstants {
   static String onboardingImage1 = "$imagePath/onboarding_img_1.jpeg";
   static String onboardingImage2 = "$imagePath/onboarding_img_2.jpeg";
   static String onboardingImage3 = "$imagePath/onboarding_img_3.jpeg";
+  static String googleMapImg = "$imagePath/google_map_img.jpg";
+  
 
   /// icons ----------------------------------------------------------------------->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

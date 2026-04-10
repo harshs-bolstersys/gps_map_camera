@@ -24,7 +24,7 @@ class GpsCoordinate {
     return '$d°$m\'${s.toStringAsFixed(1)}"$dir';
   }
 
-  String get decimal => '${latitude.toStringAsFixed(6)}°, ${longitude.toStringAsFixed(6)}°';
+  String get decimal => '$latitude°, $longitude°';
 
   @override
   String toString() => decimal;
