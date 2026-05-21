@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'package:gps_map_camera/features/camera/camera_controller.dart';
+import 'package:gps_map_camera/features/privacy_policy/privacy_policy_view.dart';
+import 'package:gps_map_camera/features/term_of_service/term_of_service_view.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -65,10 +67,19 @@ class SettingsView extends ConsumerWidget {
             title: 'About',
             children: [
               _InfoTile(icon: Icons.info_outline_rounded, title: 'Version', value: '1.0.0'),
-              _InfoTile(icon: Icons.star_rate_rounded, title: 'Rate Us', value: '⭐⭐⭐⭐⭐'),
-              _InfoTile(icon: Icons.share_rounded, title: 'Share App', value: ''),
-              _InfoTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy', value: ''),
-              _InfoTile(icon: Icons.description_outlined, title: 'Terms of Service', value: ''),
+              _InfoTile(icon: Icons.star_rate_rounded, title: 'Rate Us', value: ''),
+              _InfoTile(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy Policy',
+                value: '',
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyView())),
+              ),
+              _InfoTile(
+                icon: Icons.description_outlined,
+                title: 'Terms of Service',
+                value: '',
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => TermsOfServiceView())),
+              ),
             ],
           ),
           const SizedBox(height: 40),
@@ -155,11 +166,14 @@ class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
-  const _InfoTile({required this.icon, required this.title, required this.value});
+  final VoidCallback? onTap;
+
+  const _InfoTile({required this.icon, required this.title, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: onTap,
       leading: Container(
         width: 36,
         height: 36,

@@ -11,15 +11,18 @@ import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'camera_controller.dart';
 import 'package:gps_map_camera/features/gallery/gallery_view.dart';
 
-class CameraView extends ConsumerWidget {
+class CameraView extends ConsumerStatefulWidget {
   const CameraView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CameraView> createState() => _CameraViewState();
+}
+
+class _CameraViewState extends ConsumerState<CameraView> {
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(cameraControllerProvider);
     final ctrl = ref.read(cameraControllerProvider.notifier);
-
-    // for collections image
     final latestPhotoPath = ref.watch(
       galleryControllerProvider.select((s) => s.photos.isNotEmpty ? s.photos.first.filePath : null),
     );

@@ -27,33 +27,28 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to capture photos and videos with GPS stamps.</string>
+	<string>We need camera access so you can take photos directly inside the app to be overlayed with GPS stamps.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app uses your location to add GPS coordinates and map stamps to your photos.</string>
+	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app uses your location to add GPS coordinates and map stamps to your photos.</string>
+	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs permission to save photos and videos to your photo library.</string>
+	<string>We need permission to save your newly captured GPS-stamped photos directly to your device's photo gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to save captured photos and videos.</string>
+	<string>We need access to your photo library so you can view your saved GPS-stamped photos within the app gallery.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIStatusBarHidden</key>
+	<false/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
 </plist>
