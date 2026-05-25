@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'package:gps_map_camera/features/camera/camera_controller.dart';
 import 'package:gps_map_camera/features/privacy_policy/privacy_policy_view.dart';
 import 'package:gps_map_camera/features/term_of_service/term_of_service_view.dart';
+import 'package:gps_map_camera/services/url_launcher_service.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -90,9 +93,19 @@ class SettingsView extends ConsumerWidget {
             title: 'About',
             width: width,
             children: [
-              _InfoTile(icon: Icons.info_outline_rounded, title: 'Version', value: '1.0.0', width: width),
+              _InfoTile(icon: Icons.info_outline_rounded, title: 'Version', value: '1.1.0', width: width),
 
-              _InfoTile(icon: Icons.star_rate_rounded, title: 'Rate Us', value: '', width: width),
+              _InfoTile(
+                icon: Icons.star_rate_rounded,
+                title: 'Rate Us',
+                value: '',
+                width: width,
+                onTap: () {
+                  if (Platform.isIOS) {
+                    AppLauncher.launch(AppLauncher.rateUsUrl);
+                  }
+                },
+              ),
 
               _InfoTile(
                 icon: Icons.privacy_tip_outlined,

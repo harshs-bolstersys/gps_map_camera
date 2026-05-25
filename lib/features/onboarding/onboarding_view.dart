@@ -45,83 +45,78 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Illustration area
-            Expanded(
-              flex: 6,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: state.pages.length,
-                onPageChanged: (index) {
-                  ref.read(onboardingControllerProvider.notifier).setPage(index);
-                },
-                itemBuilder: (context, index) {
-                  return _OnboardingIllustration(tag: state.pages[index].illustrationTag);
-                },
-              ),
+      body: Column(
+        children: [
+          // Illustration area
+          Expanded(
+            flex: 6,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: state.pages.length,
+              onPageChanged: (index) {
+                ref.read(onboardingControllerProvider.notifier).setPage(index);
+              },
+              itemBuilder: (context, index) {
+                return _OnboardingIllustration(tag: state.pages[index].illustrationTag);
+              },
             ),
-            // Bottom content area
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title + Arrow row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                state.pages[state.currentPage].title,
-                                key: ValueKey(state.currentPage),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
-                                  height: 1.3,
-                                ),
+          ),
+          // Bottom content area
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title + Arrow row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Text(
+                              state.pages[state.currentPage].title,
+                              key: ValueKey(state.currentPage),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                                height: 1.3,
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            // Subtitle
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                state.pages[state.currentPage].subtitle,
-                                key: ValueKey('sub_${state.currentPage}'),
-                                style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, fontWeight: FontWeight.w400),
-                              ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Subtitle
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Text(
+                              state.pages[state.currentPage].subtitle,
+                              key: ValueKey('sub_${state.currentPage}'),
+                              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, fontWeight: FontWeight.w400),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      _NextButton(
-                        onTap: _onNext,
-                        isLastPage: state.isLastPage,
-                        progress: (state.currentPage + 1) / state.pages.length,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 25),
-                  // Dots indicator
-                  Row(
-                    children: List.generate(state.pages.length, (index) => _DotIndicator(isActive: index == state.currentPage)),
-                  ),
-                ],
-              ),
+                    ),
+                    const SizedBox(width: 10),
+                    _NextButton(
+                      onTap: _onNext,
+                      isLastPage: state.isLastPage,
+                      progress: (state.currentPage + 1) / state.pages.length,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 25),
+                // Dots indicator
+                Row(children: List.generate(state.pages.length, (index) => _DotIndicator(isActive: index == state.currentPage))),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

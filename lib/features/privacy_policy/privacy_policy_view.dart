@@ -184,7 +184,7 @@ class _PrivacyPolicyViewState extends State<PrivacyPolicyView> with SingleTicker
 
   // ── meta chips ────────────────────────────────────────────────────────────
   Widget _buildMetaChips() {
-    final chips = [('calendar_today', 'Effective June 1, 2026'), ('tag', 'Version 1.0.0'), ('language', 'English')];
+    final chips = [('calendar_today', 'Effective June 1, 2026'), ('tag', 'Version 1.1.0'), ('language', 'English')];
     return Wrap(
       spacing: 8,
       runSpacing: 8,

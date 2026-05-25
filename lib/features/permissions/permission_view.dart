@@ -30,6 +30,7 @@ class PermissionView extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: ConstrainedBox(
@@ -72,7 +73,12 @@ class PermissionView extends ConsumerWidget {
 
                     /// Camera Permission
                     TogglePermissionTile(
-                      icon: _PermissionIcon(emoji: Icons.camera_alt, color: const Color(0xFFFFF3E0), size: width),
+                      icon: _PermissionIcon(
+                        icon: Icons.camera_alt,
+                        iconColor: const Color(0xFF3949AB),
+                        bgColor: const Color(0xFFE3F2FD),
+                        size: width,
+                      ),
                       title: 'Camera Access',
                       subtitle: 'Allows the app to capture photos and record videos',
                       value: state.cameraEnabled,
@@ -89,11 +95,16 @@ class PermissionView extends ConsumerWidget {
                       },
                     ),
 
-                    SizedBox(height: height * 0.025),
+                    SizedBox(height: height * 0.005),
 
                     /// Location Permission
                     TogglePermissionTile(
-                      icon: _PermissionIcon(emoji: Icons.location_on, color: const Color(0xFFE8F5E9), size: width),
+                      icon: _PermissionIcon(
+                        icon: Icons.location_on,
+                        iconColor: const Color(0xFF1B5E20),
+                        bgColor: const Color(0xFFE8F5E9),
+                        size: width,
+                      ),
                       title: 'Location Access',
                       subtitle: 'Used to add GPS location details and map stamps to captured photos and videos.',
                       value: state.locationEnabled,
@@ -110,11 +121,16 @@ class PermissionView extends ConsumerWidget {
                       },
                     ),
 
-                    SizedBox(height: height * 0.025),
+                    SizedBox(height: height * 0.005),
 
                     /// Gallery Permission
                     TogglePermissionTile(
-                      icon: _PermissionIcon(emoji: Icons.photo_library, color: const Color(0xFFFCE4EC), size: width),
+                      icon: _PermissionIcon(
+                        icon: Icons.photo_library,
+                        iconColor: const Color(0xFF880E4F),
+                        bgColor: const Color(0xFFFCE4EC),
+                        size: width,
+                      ),
                       title: 'Photo Library Access',
                       subtitle: 'Allows saving captured photos and videos to your device gallery.',
                       value: state.galleryEnabled,
@@ -155,7 +171,7 @@ class PermissionView extends ConsumerWidget {
                             },
                     ),
 
-                    SizedBox(height: height * 0.03),
+                    SizedBox(height: height * 0.06),
                   ],
                 ),
               ),
@@ -168,19 +184,20 @@ class PermissionView extends ConsumerWidget {
 }
 
 class _PermissionIcon extends StatelessWidget {
-  final IconData emoji;
-  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final Color bgColor;
   final double size;
 
-  const _PermissionIcon({required this.emoji, required this.color, required this.size});
+  const _PermissionIcon({required this.icon, required this.iconColor, required this.bgColor, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size * 0.11,
       height: size * 0.11,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: Center(child: Icon(emoji)),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+      child: Center(child: Icon(icon, color: iconColor)),
     );
   }
 }

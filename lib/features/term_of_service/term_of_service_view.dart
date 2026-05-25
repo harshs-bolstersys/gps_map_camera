@@ -189,7 +189,7 @@ class _TermsOfServiceViewState extends State<TermsOfServiceView> with SingleTick
   Widget _buildMetaChips() {
     final chips = [
       (Icons.calendar_today_outlined, 'Effective June 1, 2026'),
-      (Icons.tag_rounded, 'Version 1.0.0'),
+      (Icons.tag_rounded, 'Version 1.1.0'),
       (Icons.language_rounded, 'English'),
     ];
     return Wrap(
