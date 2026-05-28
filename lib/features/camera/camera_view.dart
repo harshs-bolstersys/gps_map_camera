@@ -1,24 +1,109 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:camera/camera.dart' as cam;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:gps_map_camera/core/constants/image_constant.dart';
 import 'package:gps_map_camera/features/gallery/gallery_controller.dart';
 import 'package:gps_map_camera/features/settings/settings_view.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
+import 'package:gps_map_camera/services/adMob_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'camera_controller.dart';
 import 'package:gps_map_camera/features/gallery/gallery_view.dart';
 
 class CameraView extends ConsumerStatefulWidget {
   const CameraView({super.key});
-
   @override
   ConsumerState<CameraView> createState() => _CameraViewState();
 }
 
 class _CameraViewState extends ConsumerState<CameraView> {
+  /// ************************************************************************************************************************
+
+  InterstitialAd? _ad;
+  static const String _key = 'last_ad_shown_date';
+
+  @override
+  void initState() {
+    super.initState();
+    _initAdFlow();
+  }
+
+  Future<void> _initAdFlow() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+    if (prefs.getString(_key) == today) return;
+    await prefs.setString(_key, today);
+    InterstitialAd.load(
+      adUnitId: AdHelper.interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _ad = ad;
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+            onAdFailedToShowFullScreenContent: (ad, _) => ad.dispose(),
+          );
+          ad.show();
+          log("------------- ad show -------------");
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('Ad failed: $error');
+          log('Ad failed: $error');
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  /// ************************************************************************************************************************
+
+  // InterstitialAd? _ad;
+
+  // @override
+  // void initState() {
+  //   super.initState();
+
+  //   InterstitialAd.load(
+  //     adUnitId: AdHelper.interstitialAdUnitId,
+  //     request: const AdRequest(),
+  //     adLoadCallback: InterstitialAdLoadCallback(
+  //       onAdLoaded: (ad) {
+  //         _ad = ad;
+
+  //         ad.fullScreenContentCallback = FullScreenContentCallback(
+  //           onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+  //           onAdFailedToShowFullScreenContent: (ad, _) => ad.dispose(),
+  //         );
+
+  //         ad.show();
+  //         log("------------- ad show -------------");
+  //       },
+  //       onAdFailedToLoad: (error) {
+  //         debugPrint('Ad failed: $error');
+  //         log('Ad failed: $error');
+  //       },
+  //     ),
+  //   );
+  // }
+
+  // @override
+  // void dispose() {
+  //   _ad?.dispose();
+  //   super.dispose();
+  // }
+
+  /// ************************************************************************************************************************
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(cameraControllerProvider);
@@ -26,9 +111,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
     final latestPhotoPath = ref.watch(
       galleryControllerProvider.select((s) => s.photos.isNotEmpty ? s.photos.first.filePath : null),
     );
-
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(

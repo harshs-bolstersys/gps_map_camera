@@ -26,14 +26,20 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3773792846539205~9267418873</string>
+
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access so you can take photos directly inside the app to be overlayed with GPS stamps.</string>
+
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to automatically fetch real-time GPS coordinates and address details to stamp onto your captured photos.</string>
+
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need permission to save your newly captured GPS-stamped photos directly to your device's photo gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

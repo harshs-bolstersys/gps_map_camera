@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_map_camera/core/constants/app_colors.dart';
 import 'package:gps_map_camera/features/camera/camera_controller.dart';
-import 'package:gps_map_camera/features/privacy_policy/privacy_policy_view.dart';
 import 'package:gps_map_camera/features/term_of_service/term_of_service_view.dart';
 import 'package:gps_map_camera/services/url_launcher_service.dart';
 
@@ -101,9 +100,7 @@ class SettingsView extends ConsumerWidget {
                 value: '',
                 width: width,
                 onTap: () {
-                  if (Platform.isIOS) {
-                    AppLauncher.launch(AppLauncher.rateUsUrl);
-                  }
+                  AppLauncher.launch(Platform.isIOS ? AppLauncher.rateUsUrlIos : AppLauncher.rateUsUrlAndroid);
                 },
               ),
 
@@ -113,7 +110,8 @@ class SettingsView extends ConsumerWidget {
                 value: '',
                 width: width,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyView()));
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyView()));
+                  AppLauncher.launch(AppLauncher.privacyPolicyUrl);
                 },
               ),
 

@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class AppLauncher {
   // URLs
-  static const String rateUsUrl = 'https://apps.apple.com/app/id6761419194?action=write-review';
+  static const String rateUsUrlIos = 'https://apps.apple.com/app/id6761419194?action=write-review';
+  static const String rateUsUrlAndroid = 'https://play.google.com/store/apps/details?id=com.hkedgetech.gps_map_camera.gps_map_camera';
+  static const String privacyPolicyUrl = 'https://sites.google.com/view/gps-cam/home';
 
   // Common launcher method
   static Future<void> launch(String url) async {

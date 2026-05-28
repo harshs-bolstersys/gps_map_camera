@@ -187,11 +187,7 @@ class _TermsOfServiceViewState extends State<TermsOfServiceView> with SingleTick
 
   // ── meta chips ────────────────────────────────────────────────────────────
   Widget _buildMetaChips() {
-    final chips = [
-      (Icons.calendar_today_outlined, 'Effective June 1, 2026'),
-      (Icons.tag_rounded, 'Version 1.1.0'),
-      (Icons.language_rounded, 'English'),
-    ];
+    final chips = [(Icons.calendar_today_outlined, 'Effective June 1, 2026'), (Icons.language_rounded, 'English')];
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -224,7 +220,7 @@ class _TermsOfServiceViewState extends State<TermsOfServiceView> with SingleTick
     final points = [
       (Icons.check_circle_outline_rounded, 'All data stays on your device'),
       (Icons.check_circle_outline_rounded, 'No account or login required'),
-      (Icons.check_circle_outline_rounded, 'No ads or data selling'),
+      (Icons.info_outline_rounded, 'Limited ads displayed in-app'),
       (Icons.warning_amber_rounded, 'GPS accuracy not guaranteed'),
     ];
 
