@@ -30,6 +30,10 @@ class GalleryView extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
       ),
+      // bottomNavigationBar: Padding(
+      //   padding: EdgeInsets.only(bottom: height * 0.03),
+      //   child: Container(height: 50, width: double.infinity, color: Colors.amberAccent),
+      // ),
       body: Column(
         children: [
           /// Stats bar
